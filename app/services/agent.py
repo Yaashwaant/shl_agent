@@ -873,17 +873,17 @@ async def recommend_node(state: AgentState) -> AgentState:
         for eid in raw_ids:
             catalog_item = vector_store.get_by_entity_id(str(eid))
             if catalog_item:
-                # Map full labels (e.g. "Knowledge & Skills") → single-letter codes ("K")
+                # Keep complete type name instead of single-letter codes
                 full_labels = catalog_item.get("keys", catalog_item.get("test_types", []))
-                codes = [
-                    KEY_TO_CODE.get(label.strip(), label.strip()[:1])
+                types = [
+                    label.strip()
                     for label in full_labels
                     if label.strip()
                 ]
                 recommendations.append({
                     "name": catalog_item.get("name", ""),
                     "url": catalog_item.get("link", catalog_item.get("url", "")),
-                    "test_type": ", ".join(codes) if codes else "K",
+                    "test_type": ", ".join(types) if types else "Knowledge & Skills",
                 })
             else:
                 logger.warning(f"Skipping unknown entity_id: {eid}")
