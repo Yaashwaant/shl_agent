@@ -72,7 +72,7 @@ cp .env.example .env
 # GOOGLE_API_KEY=your_key_here
 ```
 
-Get a free Gemini API key at: https://aistudio.google.com/app/apikey
+
 
 ### 3. (Optional) Re-scrape the catalog
 
