@@ -412,23 +412,11 @@ Respond with ONLY valid JSON — no markdown, no explanation:
 
     user_turns = sum(1 for m in state["messages"] if m["role"] == "user")
     if user_turns == 1 and intent == "recommend":
-        last_msg = state["messages"][-1]["content"]
-        words = last_msg.split()
-        if len(words) < 15:
-            assessment_keywords = {
-                "assessment", "assessments", "test", "tests", "testing",
-                "evaluate", "evaluation", "evaluating", "questionnaire",
-                "inventory", "instrument", "screen", "screening",
-                "aptitude", "cognitive", "personality", "behavior",
-                "knowledge", "skills", "competency", "competencies",
-                "situational", "judgment", "biodata", "simulation",
-            }
-            has_assessment_keyword = any(
-                w.lower().rstrip(".,!?;:") in assessment_keywords
-                for w in words
-            )
-            if not has_assessment_keyword:
-                intent = "clarify"
+        last_msg = state["messages"][-1]["content"].lower()
+        assessment_keywords = ["hire", "need", "want", "looking", "assess", "test", "screen", "select", "recruit", "evaluate", "battery", "assessment", "developer", "engineer", "manager", "analyst", "agent", "operator", "administrative", "assistant", "executive", "specialist", "coordinator", "supervisor"]
+        has_keywords = any(k in last_msg for k in assessment_keywords)
+        if len(last_msg.split()) < 15 and not has_keywords:
+            intent = "clarify"
 
     VALID_LEVELS = {
         "Director", "Entry-Level", "Executive", "Front Line Manager",
@@ -462,6 +450,63 @@ KEY_TO_CODE = {
     "Assessment Exercises": "E",
     "Simulations": "S",
 }
+
+
+async def extract_filters_node(state: AgentState) -> AgentState:
+    """
+    LLM first-pass: extract which job_levels and assessment keys
+    the user's requirement maps to.  These are used to pre-filter
+    and run parallel searches in the retrieve node.
+    """
+    logger.info("Node: extract_filters")
+    ctx = state.get("extracted_context", {})
+
+    conv_text = "\n".join(
+        f"{m['role'].upper()}: {m['content']}" for m in state["messages"]
+    )
+
+    context_summary = json.dumps(ctx, indent=2, default=str)
+
+    messages = [
+        SystemMessage(content=EXTRACT_FILTERS_PROMPT),
+        HumanMessage(content=(
+            f"Conversation:\n{conv_text}\n\n"
+            f"Extracted context:\n{context_summary}\n\n"
+            "Respond with JSON only."
+        )),
+    ]
+
+    try:
+        raw = await _llm_call(messages, temperature=0.1)
+        json_match = re.search(r"\{.*\}", raw, re.DOTALL)
+        if json_match:
+            parsed = json.loads(json_match.group())
+            job_levels = parsed.get("job_levels", [])
+            keys = parsed.get("keys", [])
+        else:
+            job_levels = []
+            keys = ["Knowledge & Skills"]  # safe default
+    except Exception as e:
+        logger.warning(f"Filter extraction failed: {e} — using defaults")
+        job_levels = []
+        keys = ["Knowledge & Skills"]
+
+    # Validate against known values
+    VALID_LEVELS = {
+        "Director", "Entry-Level", "Executive", "Front Line Manager",
+        "General Population", "Graduate", "Manager", "Mid-Professional",
+        "Professional Individual Contributor", "Supervisor",
+    }
+    VALID_KEYS = set(KEY_TO_CODE.keys())
+
+    job_levels = [jl for jl in job_levels if jl in VALID_LEVELS]
+    keys = [k for k in keys if k in VALID_KEYS]
+
+    if not keys:
+        keys = ["Knowledge & Skills"]
+
+    logger.info(f"Extracted filters — job_levels: {job_levels}, keys: {keys}")
+    return {**state, "extracted_job_levels": job_levels, "extracted_keys": keys}
 
 
 async def retrieve_node(state: AgentState) -> AgentState:
@@ -566,49 +611,38 @@ async def retrieve_node(state: AgentState) -> AgentState:
 
 async def rerank_node(state: AgentState) -> AgentState:
     """
-    Cross-encoder reranking: fast (<1s) reranking using sentence-transformers
-    CrossEncoder instead of slow LLM reranking (~90s).
+    Fast cross-encoder reranking of merged retrieval results.
 
-    Takes the merged retrieval results and reranks them by relevance to the
-    user's actual requirement using the cross-encoder model.
-    Returns the top 10 most relevant items in order.
+    Uses ms-marco-MiniLM-L-6-v2 locally (not an LLM call) to score each
+    candidate against the user's query. This is the bottleneck removed earlier
+    — now <100ms instead of ~90s for 30 candidates.
+
+    After reranking, flow goes to recommend_node for the final top-6 selection
+    using a lightweight LLM call.
     """
-    logger.info("Node: rerank (cross-encoder)")
-    ctx = state.get("extracted_context", {})
+    logger.info("Node: rerank")
     retrieved = state.get("retrieved_items", [])
 
     if not retrieved:
         logger.warning("No items to rerank")
         return state
 
-    # Build the requirement summary from context
-    requirement_parts = []
-    if ctx.get("job_title"):
-        requirement_parts.append(f"Role: {ctx['job_title']}")
-    if ctx.get("seniority"):
-        requirement_parts.append(f"Seniority: {ctx['seniority']}")
-    if ctx.get("skills"):
-        requirement_parts.append(f"Skills: {', '.join(ctx['skills'])}")
-    if ctx.get("purpose"):
-        requirement_parts.append(f"Purpose: {ctx['purpose']}")
-    if ctx.get("sector"):
-        requirement_parts.append(f"Sector: {ctx['sector']}")
-
-    # Add last user message for full context
     last_user_msg = next(
         (m["content"] for m in reversed(state["messages"]) if m["role"] == "user"), ""
     )
-    requirement_parts.append(f"User query: {last_user_msg}")
-    requirement = "\n".join(requirement_parts)
 
-    try:
-        vector_store = get_vector_store()
-        reranked = vector_store.rerank(requirement, retrieved, top_k=10)
-        logger.info(f"Cross-encoder reranked {len(retrieved)} -> {len(reranked)} items")
-        return {**state, "retrieved_items": reranked}
-    except Exception as e:
-        logger.warning(f"Cross-encoder reranking failed: {e} — keeping original order")
-        return {**state, "retrieved_items": retrieved[:10]}
+    vector_store_svc = get_vector_store()
+    reranked = vector_store_svc.rerank(
+        query=last_user_msg,
+        candidates=retrieved,
+        top_k=20,
+    )
+
+    logger.info(
+        f"Reranked {len(retrieved)} → {len(reranked)} items "
+        f"(top rerank_score={reranked[0]['rerank_score']:.3f})"
+    )
+    return {**state, "retrieved_items": reranked}
 
 
 async def clarify_node(state: AgentState) -> AgentState:
@@ -820,51 +854,62 @@ async def recommend_node(state: AgentState) -> AgentState:
     raw_reply = await _llm_call(conv_messages, temperature=0.3)
     logger.debug(f"recommend_node raw LLM output:\n{raw_reply}")
 
+    # Parse the structured JSON from LLM output
     recommendations = []
     end_of_conv = False
     reply_text = raw_reply
-    raw_ids = []
 
     try:
-        # Strategy 1: fenced ```json ... ``` blocks
-        json_match = re.search(r"```json\s*(.*?)```", raw_reply, re.DOTALL)
-        json_str = None
+        raw_ids = []
+        end_of_conv = False
+
+        # Try multiple extraction strategies in order of robustness
+        # Strategy 1: fenced ```json block
+        json_match = re.search(r"```json\s*(\{.*?\})\s*```", raw_reply, re.DOTALL)
         if json_match:
-            json_str = json_match.group(1).strip()
-        else:
-            # Strategy 2: nested brace search for first {...} containing recommended_ids
-            depth = 0
-            start = None
-            for i, ch in enumerate(raw_reply):
-                if ch == "{":
-                    if start is None:
-                        start = i
-                    depth += 1
-                elif ch == "}":
-                    depth -= 1
-                    if depth == 0 and start is not None:
-                        candidate = raw_reply[start : i + 1]
-                        if "recommended_ids" in candidate:
-                            json_str = candidate
-                            break
-            if not json_str:
-                # Strategy 3: regex fallback for entity_id patterns
-                id_pattern = re.findall(
-                    r'(?:entity_id|id)["\']?\s*[:=]\s*["\']?([a-zA-Z0-9_\-]+)',
-                    raw_reply,
-                )
-                if id_pattern:
-                    raw_ids = id_pattern[:10]
-                    logger.info(f"Strategy 3 regex extracted {len(raw_ids)} IDs: {raw_ids}")
+            try:
+                parsed = json.loads(json_match.group(1))
+                raw_ids = parsed.get("recommended_ids", [])
+                end_of_conv = parsed.get("end_of_conversation", False)
+            except json.JSONDecodeError:
+                json_match = None
 
-        if json_str:
-            parsed = json.loads(json_str.strip())
-            raw_ids = parsed.get("recommended_ids", [])
-            end_of_conv = parsed.get("end_of_conversation", False)
-            logger.info(f"Parsed {len(raw_ids)} recommended IDs: {raw_ids}")
+        # Strategy 2: find any {...} containing "recommended_ids"
+        if not json_match:
+            for match in re.finditer(r"\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}", raw_reply, re.DOTALL):
+                try:
+                    candidate = json.loads(match.group())
+                    if "recommended_ids" in candidate:
+                        raw_ids = candidate.get("recommended_ids", [])
+                        end_of_conv = candidate.get("end_of_conversation", False)
+                        json_match = match
+                        break
+                except json.JSONDecodeError:
+                    continue
 
+        # Strategy 3: extract entity_id-like strings from "entity_id=XXX" or "ID=XXX" patterns
         if not raw_ids:
-            logger.warning(f"No recommended_ids found. Raw (first 400 chars): {raw_reply[:400]}")
+            id_patterns = [
+                r"(?:entity_?id|id)[\s:=]+(\d{3,5})",
+                r"\b(\d{4})\b",  # 4-digit numbers that look like entity IDs
+            ]
+            seen = set()
+            for pattern in id_patterns:
+                for m in re.finditer(pattern, raw_reply, re.IGNORECASE):
+                    eid = m.group(1)
+                    if eid not in seen:
+                        seen.add(eid)
+                        # Validate: check if this ID actually exists in catalog
+                        catalog_item = vector_store.get_by_entity_id(eid)
+                        if catalog_item:
+                            raw_ids.append(eid)
+            if raw_ids:
+                logger.info(f"Extracted {len(raw_ids)} IDs via fallback pattern: {raw_ids}")
+
+        if raw_ids:
+            logger.info(f"Parsed {len(raw_ids)} recommended IDs: {raw_ids[:10]}")
+        else:
+            logger.warning(f"No JSON block found in LLM output. Raw (first 400 chars): {raw_reply[:400]}")
 
         vector_store = get_vector_store()
         for eid in raw_ids:
@@ -973,7 +1018,7 @@ def build_agent_graph() -> StateGraph:
 
     Pipeline for recommendations:
       classify → retrieve → rerank → recommend → END
-    (cross-encoder rerank is fast ~1s, replaces slow LLM rerank ~90s)
+    (extract_filters merged into classify; rerank uses local cross-encoder <100ms)
     """
     graph = StateGraph(AgentState)
 

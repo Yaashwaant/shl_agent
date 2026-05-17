@@ -41,6 +41,8 @@ async def lifespan(app: FastAPI):
         logger.info(f"Loading catalog from {catalog_path}")
         vector_store.load_catalog()
         vector_store.build_index()  # No-op if already indexed
+        logger.info("Pre-loading cross-encoder model for reranking...")
+        vector_store._get_cross_encoder()  # Download model at startup, not on first request
     else:
         logger.warning(
             f"Catalog JSON not found at {catalog_path}. "
