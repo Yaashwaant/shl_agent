@@ -314,7 +314,7 @@ Respond with JSON only:
 def _get_llm(temperature: float = 0.3) -> "ChatOpenAI":
     from langchain_openai import ChatOpenAI
     return ChatOpenAI(
-        model="minimax/minimax-01",
+        model="z-ai/glm-4.5-air:free",
         temperature=temperature,
         api_key=settings.openrouter_api_key,
         base_url="https://openrouter.ai/api/v1",

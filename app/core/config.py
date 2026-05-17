@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     # Logging
     log_level: str = "INFO"
 
+    # Server
+    port: int = 8000
+
     # Agent behaviour
     max_turns: int = 8            # Hard cap per assignment spec
     max_recommendations: int = 10  # Hard cap per spec
