@@ -37,7 +37,7 @@ The retrieval flow is a three-stage hybrid search:
 
 2. **Per-key hybrid search** — for each assessment type key, the system runs a ChromaDB semantic search (cosine similarity on `all-MiniLM-L6-v2` embeddings) and a BM25Okapi lexical search in parallel. The two ranked lists are fused using **Reciprocal Rank Fusion (RRF)** with weights 0.6 semantic / 0.4 lexical. This captures both semantic similarity ("nursing assessment for hospital") and exact phrase matching ("HIPAA compliance").
 
-3. **Cross-encoder reranking** — a local `ms-marco-MiniLM-L-6-v2` cross-encoder scores each candidate against the user's original query in a single forward pass (<100ms). The LLM then makes the final selection from this reranked pool.
+3. **Cross-encoder reranking** — a local `ms-marco-MiniLM-L4-v2` cross-encoder scores each candidate against the user's original query in a single forward pass (<100ms). The LLM then makes the final selection from this reranked pool.
 
 4. **recommend node** — the LLM receives the conversation history, the full retrieved candidate set grouped by assessment type, and produces 1–10 entity IDs as a JSON block. IDs are validated against the in-memory catalog before being returned.
 

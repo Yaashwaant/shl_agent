@@ -607,7 +607,7 @@ async def rerank_node(state: AgentState) -> AgentState:
     """
     Fast cross-encoder reranking of merged retrieval results.
 
-    Uses ms-marco-MiniLM-L-6-v2 locally (not an LLM call) to score each
+    Uses ms-marco-MiniLM-L4-v2 locally (not an LLM call) to score each
     candidate against the user's query. This is the bottleneck removed earlier
     — now <100ms instead of ~90s for 30 candidates.
 
