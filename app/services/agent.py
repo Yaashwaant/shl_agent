@@ -413,8 +413,22 @@ Respond with ONLY valid JSON — no markdown, no explanation:
     user_turns = sum(1 for m in state["messages"] if m["role"] == "user")
     if user_turns == 1 and intent == "recommend":
         last_msg = state["messages"][-1]["content"]
-        if len(last_msg.split()) < 20:
-            intent = "clarify"
+        words = last_msg.split()
+        if len(words) < 15:
+            assessment_keywords = {
+                "assessment", "assessments", "test", "tests", "testing",
+                "evaluate", "evaluation", "evaluating", "questionnaire",
+                "inventory", "instrument", "screen", "screening",
+                "aptitude", "cognitive", "personality", "behavior",
+                "knowledge", "skills", "competency", "competencies",
+                "situational", "judgment", "biodata", "simulation",
+            }
+            has_assessment_keyword = any(
+                w.lower().rstrip(".,!?;:") in assessment_keywords
+                for w in words
+            )
+            if not has_assessment_keyword:
+                intent = "clarify"
 
     VALID_LEVELS = {
         "Director", "Entry-Level", "Executive", "Front Line Manager",
@@ -448,63 +462,6 @@ KEY_TO_CODE = {
     "Assessment Exercises": "E",
     "Simulations": "S",
 }
-
-
-async def extract_filters_node(state: AgentState) -> AgentState:
-    """
-    LLM first-pass: extract which job_levels and assessment keys
-    the user's requirement maps to.  These are used to pre-filter
-    and run parallel searches in the retrieve node.
-    """
-    logger.info("Node: extract_filters")
-    ctx = state.get("extracted_context", {})
-
-    conv_text = "\n".join(
-        f"{m['role'].upper()}: {m['content']}" for m in state["messages"]
-    )
-
-    context_summary = json.dumps(ctx, indent=2, default=str)
-
-    messages = [
-        SystemMessage(content=EXTRACT_FILTERS_PROMPT),
-        HumanMessage(content=(
-            f"Conversation:\n{conv_text}\n\n"
-            f"Extracted context:\n{context_summary}\n\n"
-            "Respond with JSON only."
-        )),
-    ]
-
-    try:
-        raw = await _llm_call(messages, temperature=0.1)
-        json_match = re.search(r"\{.*\}", raw, re.DOTALL)
-        if json_match:
-            parsed = json.loads(json_match.group())
-            job_levels = parsed.get("job_levels", [])
-            keys = parsed.get("keys", [])
-        else:
-            job_levels = []
-            keys = ["Knowledge & Skills"]  # safe default
-    except Exception as e:
-        logger.warning(f"Filter extraction failed: {e} — using defaults")
-        job_levels = []
-        keys = ["Knowledge & Skills"]
-
-    # Validate against known values
-    VALID_LEVELS = {
-        "Director", "Entry-Level", "Executive", "Front Line Manager",
-        "General Population", "Graduate", "Manager", "Mid-Professional",
-        "Professional Individual Contributor", "Supervisor",
-    }
-    VALID_KEYS = set(KEY_TO_CODE.keys())
-
-    job_levels = [jl for jl in job_levels if jl in VALID_LEVELS]
-    keys = [k for k in keys if k in VALID_KEYS]
-
-    if not keys:
-        keys = ["Knowledge & Skills"]
-
-    logger.info(f"Extracted filters — job_levels: {job_levels}, keys: {keys}")
-    return {**state, "extracted_job_levels": job_levels, "extracted_keys": keys}
 
 
 async def retrieve_node(state: AgentState) -> AgentState:
@@ -609,11 +566,14 @@ async def retrieve_node(state: AgentState) -> AgentState:
 
 async def rerank_node(state: AgentState) -> AgentState:
     """
-    LLM reranking: take the merged retrieval results and ask the LLM
-    to rerank them by relevance to the user's actual requirement.
+    Cross-encoder reranking: fast (<1s) reranking using sentence-transformers
+    CrossEncoder instead of slow LLM reranking (~90s).
+
+    Takes the merged retrieval results and reranks them by relevance to the
+    user's actual requirement using the cross-encoder model.
     Returns the top 10 most relevant items in order.
     """
-    logger.info("Node: rerank")
+    logger.info("Node: rerank (cross-encoder)")
     ctx = state.get("extracted_context", {})
     retrieved = state.get("retrieved_items", [])
 
@@ -641,57 +601,13 @@ async def rerank_node(state: AgentState) -> AgentState:
     requirement_parts.append(f"User query: {last_user_msg}")
     requirement = "\n".join(requirement_parts)
 
-    # Build candidate list for LLM (send all retrieved candidates)
-    candidates_for_llm = retrieved
-    candidates_text = "\n".join(
-        f"- ID={item.get('entity_id')} | {item.get('name')} | "
-        f"Types: {','.join(item.get('test_types', []))} | "
-        f"Duration: {item.get('duration', 'N/A')} | "
-        f"Desc: {item.get('description', '')[:150]}"
-        for item in candidates_for_llm
-    )
-
-    prompt_text = RERANK_PROMPT.format(
-        requirement=requirement,
-        candidates=candidates_text,
-    )
-
     try:
-        raw = await _llm_call(
-            [HumanMessage(content=prompt_text)],
-            temperature=0.1,
-        )
-        json_match = re.search(r"\{.*\}", raw, re.DOTALL)
-        if json_match:
-            parsed = json.loads(json_match.group())
-            ranked_ids = parsed.get("ranked_ids", [])
-        else:
-            ranked_ids = []
+        vector_store = get_vector_store()
+        reranked = vector_store.rerank(requirement, retrieved, top_k=10)
+        logger.info(f"Cross-encoder reranked {len(retrieved)} -> {len(reranked)} items")
+        return {**state, "retrieved_items": reranked}
     except Exception as e:
-        logger.warning(f"LLM reranking failed: {e} — keeping original order")
-        ranked_ids = []
-
-    if ranked_ids:
-        # Reorder items by the LLM's ranking, keeping only up to 10
-        id_to_item = {item.get("entity_id"): item for item in retrieved}
-        reranked = []
-        for eid in ranked_ids[:10]:
-            if str(eid) in id_to_item:
-                reranked.append(id_to_item[str(eid)])
-        
-        # If the LLM returned fewer than 10, fill the rest from the original retrieved list
-        if len(reranked) < 10:
-            reranked_ids_set = {item.get("entity_id") for item in reranked}
-            for item in retrieved:
-                if item.get("entity_id") not in reranked_ids_set:
-                    reranked.append(item)
-                if len(reranked) >= 10:
-                    break
-
-        logger.info(f"LLM reranked: {len(reranked)} items (top {len(ranked_ids[:10])} from LLM)")
-        return {**state, "retrieved_items": reranked[:10]}
-    else:
-        logger.info("LLM reranking returned no IDs — keeping original order")
+        logger.warning(f"Cross-encoder reranking failed: {e} — keeping original order")
         return {**state, "retrieved_items": retrieved[:10]}
 
 
@@ -904,27 +820,51 @@ async def recommend_node(state: AgentState) -> AgentState:
     raw_reply = await _llm_call(conv_messages, temperature=0.3)
     logger.debug(f"recommend_node raw LLM output:\n{raw_reply}")
 
-    # Parse the structured JSON from LLM output
     recommendations = []
     end_of_conv = False
     reply_text = raw_reply
+    raw_ids = []
 
     try:
-        # Primary: look for ```json ... ``` fenced block
+        # Strategy 1: fenced ```json ... ``` blocks
         json_match = re.search(r"```json\s*(.*?)```", raw_reply, re.DOTALL)
-        if not json_match:
-            # Fallback: bare JSON object containing recommended_ids
-            json_match = re.search(r"\{[^{}]*\"recommended_ids\"[^{}]*\}", raw_reply, re.DOTALL)
-
+        json_str = None
         if json_match:
-            json_str = json_match.group(1) if json_match.lastindex and json_match.lastindex >= 1 and "```" in raw_reply else json_match.group()
+            json_str = json_match.group(1).strip()
+        else:
+            # Strategy 2: nested brace search for first {...} containing recommended_ids
+            depth = 0
+            start = None
+            for i, ch in enumerate(raw_reply):
+                if ch == "{":
+                    if start is None:
+                        start = i
+                    depth += 1
+                elif ch == "}":
+                    depth -= 1
+                    if depth == 0 and start is not None:
+                        candidate = raw_reply[start : i + 1]
+                        if "recommended_ids" in candidate:
+                            json_str = candidate
+                            break
+            if not json_str:
+                # Strategy 3: regex fallback for entity_id patterns
+                id_pattern = re.findall(
+                    r'(?:entity_id|id)["\']?\s*[:=]\s*["\']?([a-zA-Z0-9_\-]+)',
+                    raw_reply,
+                )
+                if id_pattern:
+                    raw_ids = id_pattern[:10]
+                    logger.info(f"Strategy 3 regex extracted {len(raw_ids)} IDs: {raw_ids}")
+
+        if json_str:
             parsed = json.loads(json_str.strip())
             raw_ids = parsed.get("recommended_ids", [])
             end_of_conv = parsed.get("end_of_conversation", False)
             logger.info(f"Parsed {len(raw_ids)} recommended IDs: {raw_ids}")
-        else:
-            logger.warning(f"No JSON block found in LLM output. Raw (first 400 chars): {raw_reply[:400]}")
-            raw_ids = []
+
+        if not raw_ids:
+            logger.warning(f"No recommended_ids found. Raw (first 400 chars): {raw_reply[:400]}")
 
         vector_store = get_vector_store()
         for eid in raw_ids:
@@ -1032,13 +972,14 @@ def build_agent_graph() -> StateGraph:
     Assemble the LangGraph state machine.
 
     Pipeline for recommendations:
-      classify → retrieve → recommend → END
-    (extract_filters merged into classify, rerank removed to meet 30s timeout)
+      classify → retrieve → rerank → recommend → END
+    (cross-encoder rerank is fast ~1s, replaces slow LLM rerank ~90s)
     """
     graph = StateGraph(AgentState)
 
     graph.add_node("classify", classify_node)
     graph.add_node("retrieve", retrieve_node)
+    graph.add_node("rerank", rerank_node)
     graph.add_node("clarify", clarify_node)
     graph.add_node("compare", compare_node)
     graph.add_node("refuse", refuse_node)
@@ -1057,7 +998,8 @@ def build_agent_graph() -> StateGraph:
         },
     )
 
-    graph.add_edge("retrieve", "recommend")
+    graph.add_edge("retrieve", "rerank")
+    graph.add_edge("rerank", "recommend")
 
     for terminal in ["clarify", "compare", "refuse", "recommend"]:
         graph.add_edge(terminal, END)

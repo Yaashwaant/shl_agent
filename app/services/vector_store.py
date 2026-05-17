@@ -25,7 +25,7 @@ from typing import List, Dict, Any, Optional
 
 import chromadb
 from chromadb.config import Settings as ChromaSettings
-from sentence_transformers import SentenceTransformer
+from sentence_transformers import SentenceTransformer, CrossEncoder
 from rank_bm25 import BM25Okapi
 
 from app.core.config import get_settings
@@ -127,16 +127,25 @@ class VectorStoreService:
         self._client: Optional[chromadb.ClientAPI] = None
         self._collection = None
         self._embedder: Optional[SentenceTransformer] = None
+        self._cross_encoder: Optional[CrossEncoder] = None
         self._catalog: List[Dict] = []
         # BM25 index (rebuilt in-memory on every startup)
         self._bm25: Optional[BM25Okapi] = None
         self._bm25_docs: List[Dict] = []  # parallel list to BM25 corpus
+
+    CROSS_ENCODER_MODEL = "cross-encoder/ms-marco-MiniLM-L-6-v2"
 
     def _get_embedder(self) -> SentenceTransformer:
         if self._embedder is None:
             logger.info(f"Loading embedding model: {self.settings.embedding_model}")
             self._embedder = SentenceTransformer(self.settings.embedding_model)
         return self._embedder
+
+    def _get_cross_encoder(self) -> CrossEncoder:
+        if self._cross_encoder is None:
+            logger.info(f"Loading cross-encoder model: {self.CROSS_ENCODER_MODEL}")
+            self._cross_encoder = CrossEncoder(self.CROSS_ENCODER_MODEL)
+        return self._cross_encoder
 
     def _get_client(self) -> chromadb.ClientAPI:
         if self._client is None:
@@ -606,6 +615,55 @@ class VectorStoreService:
                 return []
 
         return vector_store_circuit_breaker.call(_do_search)
+
+    def rerank(
+        self,
+        query: str,
+        items: List[Dict[str, Any]],
+        top_k: int = 10,
+    ) -> List[Dict[str, Any]]:
+        """
+        Re-rank items using a cross-encoder model.
+
+        Cross-encoder reranking is fast (<1s for ~40 items) and more accurate
+        than bi-encoder retrieval because it jointly encodes query+document.
+
+        Args:
+            query: The user requirement/job description text.
+            items: List of catalog items to rerank (from retrieve_node).
+            top_k: Maximum number of items to return.
+
+        Returns:
+            Items sorted by cross-encoder relevance score (highest first).
+        """
+        if not items:
+            return []
+
+        def _do_rerank():
+            cross_encoder = self._get_cross_encoder()
+
+            doc_texts = [
+                f"{item.get('name', '')} {item.get('description', '')}"
+                for item in items
+            ]
+
+            pairs = [(query, doc_text) for doc_text in doc_texts]
+            scores = cross_encoder.predict(pairs)
+
+            scored_items = [
+                (score, i, item)
+                for i, (score, item) in enumerate(zip(scores, items))
+            ]
+            scored_items.sort(key=lambda x: x[0], reverse=True)
+
+            reranked = [item for _, _, item in scored_items[:top_k]]
+            logger.info(
+                f"Cross-encoder reranked {len(items)} items -> top {len(reranked)} "
+                f"(top score={scores[scored_items[0][1]]:.4f})"
+            )
+            return reranked
+
+        return vector_store_circuit_breaker.call(_do_rerank)
 
     def get_all(self) -> List[Dict]:
         """Return all catalog items (used as fallback when search returns nothing)."""

@@ -1,6 +1,7 @@
 """
 FastAPI router for the chat and health endpoints.
 """
+import asyncio
 import logging
 import time
 from fastapi import APIRouter, HTTPException, Request
@@ -11,6 +12,8 @@ from app.services.agent import get_agent, AgentState
 from app.core.circuit_breaker import CircuitBreakerError
 
 logger = logging.getLogger(__name__)
+
+REQUEST_TIMEOUT = 30.0
 
 router = APIRouter()
 
@@ -70,9 +73,18 @@ async def chat(request: ChatRequest, http_request: Request) -> ChatResponse:
         "extracted_context": {},
     }
 
-    try:
+    async def _run_agent():
         agent = get_agent()
-        final_state = await agent.ainvoke(initial_state)
+        return await agent.ainvoke(initial_state)
+
+    try:
+        final_state = await asyncio.wait_for(_run_agent(), timeout=REQUEST_TIMEOUT)
+    except asyncio.TimeoutError:
+        logger.error(f"Request timed out after {REQUEST_TIMEOUT}s")
+        raise HTTPException(
+            status_code=504,
+            detail="Request timed out. Please try again or simplify your query.",
+        )
     except CircuitBreakerError as e:
         logger.error(f"Circuit breaker tripped: {e}")
         raise HTTPException(
