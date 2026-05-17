@@ -24,14 +24,13 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """
     Application lifespan events.
-    Startup: Load catalog, build vector index.
+    Startup: Load catalog only (no ML models to keep memory low).
     Shutdown: Cleanup resources.
     """
     logger.info("=" * 60)
     logger.info("SHL Assessment Agent — Starting up")
     logger.info("=" * 60)
 
-    # Lazy import to avoid circular imports
     from app.services.vector_store import get_vector_store
 
     vector_store = get_vector_store()
@@ -40,9 +39,6 @@ async def lifespan(app: FastAPI):
     if catalog_path.exists():
         logger.info(f"Loading catalog from {catalog_path}")
         vector_store.load_catalog()
-        vector_store.build_index()  # No-op if already indexed
-        logger.info("Pre-loading cross-encoder model for reranking...")
-        vector_store._get_cross_encoder()  # Download model at startup, not on first request
     else:
         logger.warning(
             f"Catalog JSON not found at {catalog_path}. "
@@ -50,11 +46,7 @@ async def lifespan(app: FastAPI):
             "Service will start but recommendations will be empty."
         )
 
-    # Pre-compile the agent graph
-    from app.services.agent import get_agent
-    get_agent()
-
-    logger.info("Startup complete — service is ready")
+    logger.info("Startup complete — ML models will be loaded lazily on first request")
     yield
 
     logger.info("Shutting down SHL Assessment Agent")

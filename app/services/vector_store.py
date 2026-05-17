@@ -129,6 +129,7 @@ class VectorStoreService:
         self._embedder: Optional[SentenceTransformer] = None
         self._cross_encoder: Optional[CrossEncoder] = None
         self._catalog: List[Dict] = []
+        self._index_built: bool = False
         # BM25 index (rebuilt in-memory on every startup)
         self._bm25: Optional[BM25Okapi] = None
         self._bm25_docs: List[Dict] = []  # parallel list to BM25 corpus
@@ -505,8 +506,7 @@ class VectorStoreService:
         """
         Hybrid search entry point: semantic (ChromaDB) + lexical (BM25) fused via RRF.
 
-        Called once per assessment key in retrieve_node, with the key-specific
-        query and test_type code. Results from all keys are merged upstream.
+        Index is built lazily on first search request to reduce startup memory usage.
 
         Args:
             query:         Natural-language query tailored to the assessment key.
@@ -519,6 +519,11 @@ class VectorStoreService:
         Returns:
             List of matching catalog items with merged metadata and fused RRF scores.
         """
+        if not self._index_built:
+            logger.info("Building search index lazily on first request...")
+            self.build_index()
+            self._index_built = True
+
         def _do_search():
             # ── 1. Semantic search via ChromaDB ──────────────────────────
             semantic_results = []
