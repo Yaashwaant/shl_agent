@@ -117,8 +117,8 @@ def main():
     parser.add_argument(
         "--timeout",
         type=float,
-        default=120.0,
-        help="Timeout per /chat call in seconds (default: 120)",
+        default=300.0,
+        help="Timeout per /chat call in seconds (default: 300)",
     )
     args = parser.parse_args()
 

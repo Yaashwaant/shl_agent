@@ -233,16 +233,17 @@ class VectorStoreService:
                 "entity_id": str(item.get("entity_id", "")),
                 "name": item.get("name", ""),
                 "url": item.get("link", item.get("url", "")),
-                # Store as comma-separated single-letter codes for ChromaDB filtering
-                "test_types": ",".join(code_list),
-                # Store job levels as pipe-delimited for $contains filtering
-                "job_levels": job_levels_str,
                 "duration": item.get("duration", ""),
                 "remote_testing": item.get("remote", item.get("remote_testing", "unknown")),
                 "adaptive_irt": item.get("adaptive", item.get("adaptive_irt", "unknown")),
                 "languages": item.get("languages_raw", str(item.get("languages", "")))[:500],
                 "description": item.get("description", "")[:1000],
             }
+            # Store as lists for ChromaDB $contains filtering (must be non-empty)
+            if code_list:
+                metadata["test_types"] = code_list
+            if isinstance(job_levels_list, list) and job_levels_list:
+                metadata["job_levels"] = job_levels_list
 
             doc_id = f"shl_{i:04d}"
             documents.append(doc_text)
@@ -306,10 +307,9 @@ class VectorStoreService:
                 conditions.append({"$or": type_conditions})
 
         if job_levels:
-            # Filter items whose job_levels string CONTAINS at least one requested level
-            # Uses pipe-delimited format: "|Director|Manager|" with $contains "|Director|"
+            # Filter items whose job_levels list CONTAINS at least one requested level
             level_conditions = [
-                {"job_levels": {"$contains": f"|{level}|"}} for level in job_levels
+                {"job_levels": {"$contains": level}} for level in job_levels
             ]
             if len(level_conditions) == 1:
                 conditions.append(level_conditions[0])
@@ -540,11 +540,16 @@ class VectorStoreService:
                 distances = results.get("distances", [[]])[0]
 
                 for meta, dist in zip(metadatas, distances):
+                    # handle both old (string) and new (list) metadata formats during transition
+                    test_types_meta = meta.get("test_types", [])
+                    if isinstance(test_types_meta, str):
+                        test_types_meta = test_types_meta.split(",")
+
                     semantic_results.append({
                         "entity_id": meta.get("entity_id", ""),
                         "name": meta.get("name", ""),
                         "url": meta.get("url", ""),
-                        "test_types": meta.get("test_types", "").split(","),
+                        "test_types": test_types_meta,
                         "duration": meta.get("duration", ""),
                         "remote_testing": meta.get("remote_testing", "unknown"),
                         "adaptive_irt": meta.get("adaptive_irt", "unknown"),

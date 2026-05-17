@@ -6,6 +6,7 @@ Graph structure:
   │   classify  │  ← Determines intent: clarify / recommend / compare / refuse / end
   └──────┬──────┘
 """
+import asyncio
 import json
 import logging
 import re
@@ -314,7 +315,7 @@ Respond with JSON only:
 def _get_llm(temperature: float = 0.3) -> "ChatOpenAI":
     from langchain_openai import ChatOpenAI
     return ChatOpenAI(
-        model="z-ai/glm-4.5-air:free",
+        model="google/gemini-3.1-flash-lite",
         temperature=temperature,
         api_key=settings.openrouter_api_key,
         base_url="https://openrouter.ai/api/v1",
@@ -322,15 +323,21 @@ def _get_llm(temperature: float = 0.3) -> "ChatOpenAI":
     )
 
 
-async def _llm_call(messages: List, temperature: float = 0.3) -> str:
-    """Call LLM through circuit breaker with fallback."""
+async def _llm_call(messages: List, temperature: float = 0.3, timeout: float = 25.0) -> str:
+    """Call LLM through circuit breaker with fallback and per-call timeout."""
     async def _call():
         llm = _get_llm(temperature)
-        response = await llm.ainvoke(messages)
+        response = await asyncio.wait_for(
+            llm.ainvoke(messages),
+            timeout=timeout,
+        )
         return response.content
 
     try:
         return await llm_circuit_breaker.call_async(_call)
+    except asyncio.TimeoutError:
+        logger.warning(f"LLM call timed out after {timeout}s")
+        raise
     except CircuitBreakerError:
         logger.error("LLM circuit breaker OPEN — using fallback response")
         return (
@@ -342,44 +349,92 @@ async def _llm_call(messages: List, temperature: float = 0.3) -> str:
 # ─────────────────────────── Graph Nodes ────────────────────────────────── #
 
 async def classify_node(state: AgentState) -> AgentState:
-    """Classify user intent and extract structured context from conversation."""
-    logger.info("Node: classify")
+    """
+    Combined node: classify intent + extract job_levels + assessment keys
+    in a SINGLE LLM call to meet the 30s timeout constraint.
+    """
+    logger.info("Node: classify (combined)")
 
     conv_text = "\n".join(
         f"{m['role'].upper()}: {m['content']}"
         for m in state["messages"]
     )
 
-    classify_messages = [
-        SystemMessage(content=CLASSIFY_PROMPT),
-        HumanMessage(content=f"Conversation:\n{conv_text}\n\nRespond with JSON only."),
-    ]
+    combined_prompt = f"""Analyze the full conversation and respond with a SINGLE JSON object containing ALL of the following:
 
+1. intent: One of clarify/recommend/refine/compare/confirm/refuse/end
+2. context: Job title, role category, seniority, skills, test_type_preferences, remote_required, adaptive_required, languages, purpose, volume, sector, exclusions, current_recommendations
+3. job_levels: Array of job levels for filtering (e.g. ["Manager", "Director"])
+4. keys: Array of assessment types for parallel search (e.g. ["Knowledge & Skills", "Personality & Behavior"])
+
+Valid job levels: Director, Entry-Level, Executive, Front Line Manager, General Population, Graduate, Manager, Mid-Professional, Professional Individual Contributor, Supervisor
+Valid keys: Knowledge & Skills, Ability & Aptitude, Personality & Behavior, Biodata & Situational Judgment, Competencies, Development & 360, Assessment Exercises, Simulations
+
+Conversation:
+{conv_text}
+
+Rules:
+- First user message with <20 words and vague = clarify
+- Short first query with enough detail = recommend
+- User modifying shortlist = refine
+- Comparing assessments = compare
+- User accepting/finalising = confirm
+- Out of scope = refuse
+- Job levels: be generous with adjacent levels ("junior" = Entry-Level, Graduate; "senior" = Manager, Director)
+- Keys: always include Knowledge & Skills for technical roles; Personality & Behavior for roles with people interaction
+
+Respond with ONLY valid JSON — no markdown, no explanation:
+{{"intent": "...", "context": {{...}}, "job_levels": [...], "keys": [...]}}
+"""
     try:
-        raw = await _llm_call(classify_messages, temperature=0.1)
-        # Extract JSON from response
+        raw = await _llm_call(
+            [HumanMessage(content=combined_prompt)],
+            temperature=0.1,
+        )
         json_match = re.search(r"\{.*\}", raw, re.DOTALL)
         if json_match:
             parsed = json.loads(json_match.group())
             intent = parsed.get("intent", "clarify")
             context = parsed.get("context", {})
+            job_levels = parsed.get("job_levels", [])
+            keys = parsed.get("keys", [])
         else:
             intent = "clarify"
             context = {}
+            job_levels = []
+            keys = ["Knowledge & Skills"]
     except Exception as e:
         logger.warning(f"Classification failed: {e} — defaulting to clarify")
         intent = "clarify"
         context = {}
+        job_levels = []
+        keys = ["Knowledge & Skills"]
 
-    # Override: never recommend on first user turn (turn 1 = 1 user message)
     user_turns = sum(1 for m in state["messages"] if m["role"] == "user")
     if user_turns == 1 and intent == "recommend":
         last_msg = state["messages"][-1]["content"]
-        if len(last_msg.split()) < 20:  # Short first query — clarify
+        if len(last_msg.split()) < 20:
             intent = "clarify"
 
-    logger.info(f"Classified intent: {intent}, context keys: {list(context.keys())}")
-    return {**state, "intent": intent, "extracted_context": context}
+    VALID_LEVELS = {
+        "Director", "Entry-Level", "Executive", "Front Line Manager",
+        "General Population", "Graduate", "Manager", "Mid-Professional",
+        "Professional Individual Contributor", "Supervisor",
+    }
+    VALID_KEYS = set(KEY_TO_CODE.keys())
+    job_levels = [jl for jl in job_levels if jl in VALID_LEVELS]
+    keys = [k for k in keys if k in VALID_KEYS]
+    if not keys:
+        keys = ["Knowledge & Skills"]
+
+    logger.info(f"Classified intent: {intent}, job_levels: {job_levels}, keys: {keys}")
+    return {
+        **state,
+        "intent": intent,
+        "extracted_context": context,
+        "extracted_job_levels": job_levels,
+        "extracted_keys": keys,
+    }
 
 
 # ── Key-code mapping for parallel searches ───────────────────────────────
@@ -960,13 +1015,12 @@ def route_by_intent(state: AgentState) -> str:
     intent = state.get("intent", "clarify")
     route_map = {
         "clarify": "clarify",
-        # recommend/refine/confirm/end all go through the filter→retrieve→rerank pipeline
-        "recommend": "extract_filters",
-        "refine": "extract_filters",
+        "recommend": "retrieve",
+        "refine": "retrieve",
         "compare": "compare",
         "refuse": "refuse",
-        "confirm": "extract_filters",
-        "end": "extract_filters",
+        "confirm": "retrieve",
+        "end": "retrieve",
     }
     return route_map.get(intent, "clarify")
 
@@ -978,41 +1032,33 @@ def build_agent_graph() -> StateGraph:
     Assemble the LangGraph state machine.
 
     Pipeline for recommendations:
-      classify → extract_filters → retrieve → rerank → recommend → END
+      classify → retrieve → recommend → END
+    (extract_filters merged into classify, rerank removed to meet 30s timeout)
     """
     graph = StateGraph(AgentState)
 
-    # Register nodes
     graph.add_node("classify", classify_node)
-    graph.add_node("extract_filters", extract_filters_node)
     graph.add_node("retrieve", retrieve_node)
-    graph.add_node("rerank", rerank_node)
     graph.add_node("clarify", clarify_node)
     graph.add_node("compare", compare_node)
     graph.add_node("refuse", refuse_node)
     graph.add_node("recommend", recommend_node)
 
-    # Entry point
     graph.set_entry_point("classify")
 
-    # Edges from classify (conditional)
     graph.add_conditional_edges(
         "classify",
         route_by_intent,
         {
             "clarify": "clarify",
-            "extract_filters": "extract_filters",
+            "retrieve": "retrieve",
             "compare": "compare",
             "refuse": "refuse",
         },
     )
 
-    # Recommendation pipeline: extract_filters → retrieve → rerank → recommend
-    graph.add_edge("extract_filters", "retrieve")
-    graph.add_edge("retrieve", "rerank")
-    graph.add_edge("rerank", "recommend")
+    graph.add_edge("retrieve", "recommend")
 
-    # All terminal nodes → END
     for terminal in ["clarify", "compare", "refuse", "recommend"]:
         graph.add_edge(terminal, END)
 
