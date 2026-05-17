@@ -142,8 +142,8 @@ class VectorStoreService:
 
     def _get_cross_encoder(self) -> CrossEncoder:
         if self._cross_encoder is None:
-            logger.info("Loading cross-encoder model: cross-encoder/ms-marco-MiniLM-L-6-v2")
-            self._cross_encoder = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
+            logger.info("Loading cross-encoder model: cross-encoder/ms-marco-MiniLM-L4-v2")
+            self._cross_encoder = CrossEncoder("cross-encoder/ms-marco-MiniLM-L4-v2")
         return self._cross_encoder
 
     def _get_client(self) -> chromadb.ClientAPI:
@@ -628,7 +628,7 @@ class VectorStoreService:
         """
         Fast cross-encoder reranking of retrieval candidates.
 
-        Uses ms-marco-MiniLM-L-6-v2 to score each candidate against the query
+        Uses ms-marco-MiniLM-L4-v2 to score each candidate against the query
         in a single forward pass — typically <100ms for 30 candidates.
 
         Returns the reranked list of candidates with a new `rerank_score` field.
