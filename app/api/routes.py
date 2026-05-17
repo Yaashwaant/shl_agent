@@ -9,8 +9,6 @@ from fastapi.responses import JSONResponse
 
 from app.models.schemas import ChatRequest, ChatResponse, HealthResponse, Recommendation
 from app.services.agent import get_agent, AgentState
-from app.core.circuit_breaker import CircuitBreakerError
-
 logger = logging.getLogger(__name__)
 
 REQUEST_TIMEOUT = 30.0
@@ -84,12 +82,6 @@ async def chat(request: ChatRequest, http_request: Request) -> ChatResponse:
         raise HTTPException(
             status_code=504,
             detail="Request timed out. Please try again or simplify your query.",
-        )
-    except CircuitBreakerError as e:
-        logger.error(f"Circuit breaker tripped: {e}")
-        raise HTTPException(
-            status_code=503,
-            detail="Service temporarily unavailable. Please try again in a moment.",
         )
     except Exception as e:
         logger.exception(f"Agent error: {e}")

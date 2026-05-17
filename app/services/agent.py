@@ -17,7 +17,7 @@ from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from langgraph.graph import StateGraph, END
 
 from app.core.config import get_settings
-from app.core.circuit_breaker import llm_circuit_breaker, CircuitBreakerError
+from app.core.circuit_breaker import CircuitBreakerError
 from app.models.schemas import Recommendation
 from app.services.vector_store import get_vector_store
 
@@ -324,7 +324,7 @@ def _get_llm(temperature: float = 0.3) -> "ChatOpenAI":
 
 
 async def _llm_call(messages: List, temperature: float = 0.3, timeout: float = 25.0) -> str:
-    """Call LLM through circuit breaker with fallback and per-call timeout."""
+    """Call LLM with per-call timeout."""
     async def _call():
         llm = _get_llm(temperature)
         response = await asyncio.wait_for(
@@ -334,16 +334,10 @@ async def _llm_call(messages: List, temperature: float = 0.3, timeout: float = 2
         return response.content
 
     try:
-        return await llm_circuit_breaker.call_async(_call)
+        return await _call()
     except asyncio.TimeoutError:
         logger.warning(f"LLM call timed out after {timeout}s")
         raise
-    except CircuitBreakerError:
-        logger.error("LLM circuit breaker OPEN — using fallback response")
-        return (
-            "I'm temporarily unable to process your request due to a service issue. "
-            "Please try again in a moment."
-        )
 
 
 # ─────────────────────────── Graph Nodes ────────────────────────────────── #

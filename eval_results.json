@@ -1,5 +1,5 @@
 {
-  "mean_recall_at_10": 0.2915873015873016,
+  "mean_recall_at_10": 0.5563492063492064,
   "k": 10,
   "num_scenarios": 30,
   "results": [
@@ -8,12 +8,11 @@
       "description": "Senior leadership selection \u2013 CXO/Director level, personality + leadership benchmarking",
       "expected_ids": [
         "758",
-        "749",
-        "720"
+        "720",
+        "749"
       ],
       "recommended_ids": [
         "720",
-        "4300",
         "735"
       ],
       "hit_ids": [
@@ -28,45 +27,48 @@
       "scenario_id": "Q02",
       "description": "Senior Rust engineer \u2013 systems/networking, cognitive + technical + personality",
       "expected_ids": [
-        "4218",
-        "720",
         "205",
+        "720",
         "4100",
+        "4218",
         "3971"
       ],
       "recommended_ids": [
-        "3908",
+        "3971",
         "720",
         "205",
-        "4299",
-        "4100"
+        "4100",
+        "4299"
       ],
       "hit_ids": [
+        "3971",
         "720",
         "205",
         "4100"
       ],
       "hit_names": [
+        "SHL Verify Interactive G+",
         "Occupational Personality Questionnaire OPQ32r",
         "Linux Programming (General)",
         "Networking and Implementation (New)"
       ],
-      "recall": 0.6
+      "recall": 0.8
     },
     {
       "scenario_id": "Q03",
       "description": "Entry-level contact centre \u2013 high-volume English US, spoken language + simulation + behavioural fit",
       "expected_ids": [
-        "3939",
-        "3987",
         "4189",
-        "3933"
+        "3987",
+        "3933",
+        "3939"
       ],
       "recommended_ids": [
         "3734",
         "3939",
-        "3930",
-        "3935"
+        "3935",
+        "3941",
+        "779"
       ],
       "hit_ids": [
         "3939"
@@ -80,52 +82,50 @@
       "scenario_id": "Q04",
       "description": "Graduate financial analysts \u2013 numerical reasoning, finance knowledge, situational judgement",
       "expected_ids": [
+        "3946",
+        "741",
+        "4149",
         "720",
-        "741",
-        "3946",
-        "3992",
-        "4149"
-      ],
-      "recommended_ids": [
-        "3946",
-        "741",
-        "3992",
-        "4083"
-      ],
-      "hit_ids": [
-        "3946",
-        "741",
         "3992"
       ],
-      "hit_names": [
-        "SHL Verify Interactive \u2013 Numerical Reasoning",
-        "Graduate Scenarios",
-        "Financial Accounting (New)"
+      "recommended_ids": [
+        "3745",
+        "3992",
+        "741"
       ],
-      "recall": 0.6
+      "hit_ids": [
+        "3992",
+        "741"
+      ],
+      "hit_names": [
+        "Financial Accounting (New)",
+        "Graduate Scenarios"
+      ],
+      "recall": 0.4
     },
     {
       "scenario_id": "Q05",
       "description": "Sales organisation re-skilling / talent audit \u2013 skills, personality, sales-specific reports",
       "expected_ids": [
-        "4301",
-        "720",
-        "754",
         "4283",
-        "4302"
+        "4301",
+        "754",
+        "4302",
+        "720"
       ],
       "recommended_ids": [
-        "720",
-        "4283",
+        "4302",
         "4288",
+        "4283",
+        "4064",
         "3930"
       ],
       "hit_ids": [
-        "720",
+        "4302",
         "4283"
       ],
       "hit_names": [
-        "Occupational Personality Questionnaire OPQ32r",
+        "Global Skills Development Report",
         "Sales Transformation 2.0 - Individual Contributor"
       ],
       "recall": 0.4
@@ -134,14 +134,15 @@
       "scenario_id": "Q06",
       "description": "Chemical plant operators \u2013 safety-critical, industrial, dependability and safety focus",
       "expected_ids": [
-        "4068",
-        "4293"
+        "4293",
+        "4068"
       ],
       "recommended_ids": [
         "4291",
         "4293",
         "731",
-        "4068"
+        "4068",
+        "383"
       ],
       "hit_ids": [
         "4293",
@@ -157,31 +158,28 @@
       "scenario_id": "Q07",
       "description": "Bilingual healthcare admin staff \u2013 Spanish-speaking, HIPAA compliance, hybrid English/Spanish battery",
       "expected_ids": [
-        "720",
-        "4058",
-        "331",
         "4211",
+        "720",
+        "331",
+        "4058",
         "731"
       ],
       "recommended_ids": [
-        "720",
-        "731",
-        "4058",
-        "3994",
         "18",
-        "4180"
+        "3993",
+        "3995",
+        "731",
+        "720"
       ],
       "hit_ids": [
-        "720",
         "731",
-        "4058"
+        "720"
       ],
       "hit_names": [
-        "Occupational Personality Questionnaire OPQ32r",
         "Dependability and Safety Instrument (DSI)",
-        "Medical Terminology (New)"
+        "Occupational Personality Questionnaire OPQ32r"
       ],
-      "recall": 0.6
+      "recall": 0.4
     },
     {
       "scenario_id": "Q08",
@@ -191,87 +189,96 @@
         "3993",
         "720"
       ],
-      "recommended_ids": [],
-      "hit_ids": [],
-      "hit_names": [],
-      "recall": 0.0
+      "recommended_ids": [
+        "720",
+        "3994",
+        "3993"
+      ],
+      "hit_ids": [
+        "720",
+        "3994",
+        "3993"
+      ],
+      "hit_names": [
+        "Occupational Personality Questionnaire OPQ32r",
+        "MS Word (New)",
+        "MS Excel (New)"
+      ],
+      "recall": 1.0
     },
     {
       "scenario_id": "Q09",
       "description": "Admin assistants \u2013 Excel and Word, user wants simulations added after initial knowledge-only recommendation",
       "expected_ids": [
-        "720",
-        "3994",
-        "3993",
         "4210",
-        "4207"
+        "4207",
+        "3993",
+        "720",
+        "3994"
       ],
       "recommended_ids": [
-        "720",
         "615",
+        "720",
         "3993",
+        "3994",
         "4210"
       ],
       "hit_ids": [
         "720",
         "3993",
+        "3994",
         "4210"
       ],
       "hit_names": [
         "Occupational Personality Questionnaire OPQ32r",
         "MS Excel (New)",
+        "MS Word (New)",
         "Microsoft Word 365 (New)"
       ],
-      "recall": 0.6
+      "recall": 0.8
     },
     {
       "scenario_id": "Q10",
       "description": "Senior Full-Stack Engineer JD \u2013 backend-leaning, Java/Spring/SQL primary, full battery",
       "expected_ids": [
-        "720",
-        "4144",
-        "4034",
-        "4126",
         "4143",
+        "4034",
+        "720",
+        "4126",
+        "4144",
         "3971"
       ],
       "recommended_ids": [
-        "4034",
-        "4143",
-        "4144",
-        "4126",
-        "3971",
+        "3908",
         "720",
-        "4289"
+        "1067",
+        "3809",
+        "4143",
+        "4126",
+        "4056"
       ],
       "hit_ids": [
-        "4034",
+        "720",
         "4143",
-        "4144",
-        "4126",
-        "3971",
-        "720"
+        "4126"
       ],
       "hit_names": [
-        "Core Java (Advanced Level) (New)",
+        "Occupational Personality Questionnaire OPQ32r",
         "Spring (New)",
-        "SQL (New)",
-        "RESTful Web Services (New)",
-        "SHL Verify Interactive G+",
-        "Occupational Personality Questionnaire OPQ32r"
+        "RESTful Web Services (New)"
       ],
-      "recall": 1.0
+      "recall": 0.5
     },
     {
       "scenario_id": "Q11",
       "description": "Senior Full-Stack Engineer \u2013 user drops REST, adds AWS and Docker",
       "expected_ids": [
         "4028",
-        "720",
-        "4144",
-        "4034",
         "4059",
         "4143",
+        "4034",
+        "720",
+        "4144",
         "3971"
       ],
       "recommended_ids": [
@@ -279,8 +286,7 @@
         "4143",
         "4144",
         "4028",
-        "4056",
-        "3908",
+        "3971",
         "720"
       ],
       "hit_ids": [
@@ -288,6 +294,7 @@
         "4143",
         "4144",
         "4028",
+        "3971",
         "720"
       ],
       "hit_names": [
@@ -295,17 +302,18 @@
         "Spring (New)",
         "SQL (New)",
         "Amazon Web Services (AWS) Development (New)",
+        "SHL Verify Interactive G+",
         "Occupational Personality Questionnaire OPQ32r"
       ],
-      "recall": 0.7142857142857143
+      "recall": 0.8571428571428571
     },
     {
       "scenario_id": "Q12",
       "description": "Graduate management trainee scheme \u2013 full battery, cognitive + personality + SJT",
       "expected_ids": [
-        "3971",
         "741",
-        "720"
+        "720",
+        "3971"
       ],
       "recommended_ids": [
         "3971",
@@ -330,8 +338,8 @@
       "scenario_id": "Q13",
       "description": "Graduate management trainee \u2013 user drops OPQ, keeps only Verify G+ and Graduate Scenarios",
       "expected_ids": [
-        "3971",
-        "741"
+        "741",
+        "3971"
       ],
       "recommended_ids": [
         "3971",
@@ -351,9 +359,9 @@
       "scenario_id": "Q14",
       "description": "Mid-level Java developer with stakeholder interaction \u2013 technical + interpersonal",
       "expected_ids": [
-        "249",
-        "4032",
         "720",
+        "4032",
+        "249",
         "4084"
       ],
       "recommended_ids": [
@@ -375,44 +383,73 @@
       "scenario_id": "Q15",
       "description": "Data science / ML engineer \u2013 Python, data science simulation, statistics",
       "expected_ids": [
-        "4123",
-        "4013",
+        "4149",
         "720",
         "3982",
-        "3971",
-        "4149"
+        "4123",
+        "4013",
+        "3971"
       ],
-      "recommended_ids": [],
-      "hit_ids": [],
-      "hit_names": [],
-      "recall": 0.0
+      "recommended_ids": [
+        "3946",
+        "3968",
+        "720",
+        "4013",
+        "219"
+      ],
+      "hit_ids": [
+        "720",
+        "4013"
+      ],
+      "hit_names": [
+        "Occupational Personality Questionnaire OPQ32r",
+        "Data Science (New)"
+      ],
+      "recall": 0.3333333333333333
     },
     {
       "scenario_id": "Q16",
       "description": "Entry-level cashier / retail \u2013 money handling, customer service, personality fit",
       "expected_ids": [
-        "3934",
+        "3459",
         "697",
-        "3458",
-        "3459"
+        "3934",
+        "3458"
       ],
-      "recommended_ids": [],
-      "hit_ids": [],
-      "hit_names": [],
-      "recall": 0.0
+      "recommended_ids": [
+        "3939",
+        "3934",
+        "3459",
+        "3458",
+        "697"
+      ],
+      "hit_ids": [
+        "3934",
+        "3459",
+        "3458",
+        "697"
+      ],
+      "hit_names": [
+        "Entry Level Cashier Solution",
+        "What Is The Value - US",
+        "Count Out The Money",
+        "Retail Sales and Service Simulation"
+      ],
+      "recall": 1.0
     },
     {
       "scenario_id": "Q17",
       "description": "Front-line manufacturing / warehouse operators \u2013 safety, mechanical aptitude, vigilance",
       "expected_ids": [
-        "4292",
-        "4295",
         "4294",
+        "4295",
+        "4292",
         "4293",
         "4068"
       ],
       "recommended_ids": [
         "4291",
+        "4290",
         "4293",
         "4068"
       ],
@@ -430,154 +467,283 @@
       "scenario_id": "Q18",
       "description": "DevOps / cloud infrastructure engineer \u2013 Docker, Kubernetes, AWS, Linux, CI/CD",
       "expected_ids": [
+        "4028",
+        "4059",
+        "4152",
+        "3990",
+        "4086",
+        "3971"
+      ],
+      "recommended_ids": [
+        "720",
+        "4059",
         "4152",
         "3990",
         "4028",
-        "4059",
-        "3971",
-        "4086"
+        "4045"
       ],
-      "recommended_ids": [],
-      "hit_ids": [],
-      "hit_names": [],
-      "recall": 0.0
+      "hit_ids": [
+        "4059",
+        "4152",
+        "3990",
+        "4028"
+      ],
+      "hit_names": [
+        "Docker (New)",
+        "Kubernetes (New)",
+        "Linux Administration (New)",
+        "Amazon Web Services (AWS) Development (New)"
+      ],
+      "recall": 0.6666666666666666
     },
     {
       "scenario_id": "Q19",
       "description": "Telesales contact centre \u2013 outbound sales, English US, volume hiring",
       "expected_ids": [
+        "3937",
         "3987",
-        "3930",
         "3932",
-        "3937"
+        "3930"
       ],
-      "recommended_ids": [],
-      "hit_ids": [],
-      "hit_names": [],
-      "recall": 0.0
+      "recommended_ids": [
+        "3906",
+        "3939",
+        "3930",
+        "3932"
+      ],
+      "hit_ids": [
+        "3930",
+        "3932"
+      ],
+      "hit_names": [
+        "Sales & Service Phone Solution",
+        "Sales & Service Phone Simulation"
+      ],
+      "recall": 0.5
     },
     {
       "scenario_id": "Q20",
       "description": "Front-end developer \u2013 HTML, CSS, JavaScript, React",
       "expected_ids": [
-        "4080",
         "4222",
+        "4052",
+        "4177",
         "3989",
+        "4080"
+      ],
+      "recommended_ids": [
+        "3484",
+        "720",
+        "3989",
+        "4080",
         "4177",
         "4052"
       ],
-      "recommended_ids": [],
-      "hit_ids": [],
-      "hit_names": [],
-      "recall": 0.0
+      "hit_ids": [
+        "3989",
+        "4080",
+        "4177",
+        "4052"
+      ],
+      "hit_names": [
+        "JavaScript (New)",
+        "HTML/CSS (New)",
+        "ReactJS (New)",
+        "CSS3 (New)"
+      ],
+      "recall": 0.8
     },
     {
       "scenario_id": "Q21",
       "description": "Project manager \u2013 PM knowledge, cognitive ability, personality",
       "expected_ids": [
-        "3971",
         "742",
+        "3769",
+        "720",
+        "3971"
+      ],
+      "recommended_ids": [
+        "3769",
+        "720",
+        "756"
+      ],
+      "hit_ids": [
         "3769",
         "720"
       ],
-      "recommended_ids": [],
-      "hit_ids": [],
-      "hit_names": [],
-      "recall": 0.0
+      "hit_names": [
+        "Project Management (2013)",
+        "Occupational Personality Questionnaire OPQ32r"
+      ],
+      "recall": 0.5
     },
     {
       "scenario_id": "Q22",
       "description": "HR manager \u2013 HR knowledge, interpersonal skills, personality",
       "expected_ids": [
+        "720",
+        "3999",
+        "249",
+        "333"
+      ],
+      "recommended_ids": [
+        "3484",
+        "720",
+        "750",
         "3999",
         "333",
-        "249",
-        "720"
+        "244"
       ],
-      "recommended_ids": [],
-      "hit_ids": [],
-      "hit_names": [],
-      "recall": 0.0
+      "hit_ids": [
+        "720",
+        "3999",
+        "333"
+      ],
+      "hit_names": [
+        "Occupational Personality Questionnaire OPQ32r",
+        "Human Resources (New)",
+        "Interviewing and Hiring Concepts (U.S.)"
+      ],
+      "recall": 0.75
     },
     {
       "scenario_id": "Q23",
       "description": "360-degree leadership development for existing mid-level managers",
       "expected_ids": [
         "757",
+        "3948",
         "720",
-        "744",
-        "3948"
+        "744"
       ],
-      "recommended_ids": [],
-      "hit_ids": [],
-      "hit_names": [],
-      "recall": 0.0
+      "recommended_ids": [
+        "744",
+        "4297",
+        "720",
+        "750",
+        "756"
+      ],
+      "hit_ids": [
+        "744",
+        "720"
+      ],
+      "hit_names": [
+        "360\u00b0 Multi-Rater Feedback System (MFS)",
+        "Occupational Personality Questionnaire OPQ32r"
+      ],
+      "recall": 0.5
     },
     {
       "scenario_id": "Q24",
       "description": "High-potential identification programme \u2013 aspiration, ability, engagement",
       "expected_ids": [
-        "3908",
-        "4284",
+        "720",
         "724",
+        "4284",
+        "3908"
+      ],
+      "recommended_ids": [
+        "3733",
+        "720",
+        "756",
+        "744"
+      ],
+      "hit_ids": [
         "720"
       ],
-      "recommended_ids": [],
-      "hit_ids": [],
-      "hit_names": [],
-      "recall": 0.0
+      "hit_names": [
+        "Occupational Personality Questionnaire OPQ32r"
+      ],
+      "recall": 0.25
     },
     {
       "scenario_id": "Q25",
       "description": "SQL / database developer \u2013 SQL knowledge and simulation",
       "expected_ids": [
-        "4144",
-        "3981",
+        "3971",
         "4035",
-        "3971"
+        "4144",
+        "3981"
       ],
-      "recommended_ids": [],
-      "hit_ids": [],
-      "hit_names": [],
-      "recall": 0.0
+      "recommended_ids": [
+        "3745",
+        "4144"
+      ],
+      "hit_ids": [
+        "4144"
+      ],
+      "hit_names": [
+        "SQL (New)"
+      ],
+      "recall": 0.25
     },
     {
       "scenario_id": "Q26",
       "description": "Digital marketing executive \u2013 SEO, digital advertising, social media",
       "expected_ids": [
-        "720",
         "4014",
-        "4171",
-        "4003"
+        "720",
+        "4003",
+        "4171"
       ],
-      "recommended_ids": [],
-      "hit_ids": [],
-      "hit_names": [],
-      "recall": 0.0
+      "recommended_ids": [
+        "4003",
+        "4008",
+        "4014",
+        "615",
+        "720",
+        "4221"
+      ],
+      "hit_ids": [
+        "4003",
+        "4014",
+        "720"
+      ],
+      "hit_names": [
+        "Digital Advertising (New)",
+        "Social Media (New)",
+        "Occupational Personality Questionnaire OPQ32r"
+      ],
+      "recall": 0.75
     },
     {
       "scenario_id": "Q27",
       "description": "Nursing / clinical staff \u2013 nursing knowledge, medical terminology, personality",
       "expected_ids": [
-        "4058",
+        "720",
         "249",
+        "4041",
+        "4058"
+      ],
+      "recommended_ids": [
+        "615",
+        "720",
+        "4289",
+        "4041"
+      ],
+      "hit_ids": [
         "720",
         "4041"
       ],
-      "recommended_ids": [],
-      "hit_ids": [],
-      "hit_names": [],
-      "recall": 0.0
+      "hit_names": [
+        "Occupational Personality Questionnaire OPQ32r",
+        "Nursing (New)"
+      ],
+      "recall": 0.5
     },
     {
       "scenario_id": "Q28",
       "description": "Remote workforce readiness \u2013 assessing suitability for remote working across teams",
       "expected_ids": [
-        "4204",
         "4203",
+        "4204",
         "4202"
       ],
-      "recommended_ids": [],
+      "recommended_ids": [
+        "4239",
+        "4221",
+        "720",
+        "4289"
+      ],
       "hit_ids": [],
       "hit_names": [],
       "recall": 0.0
@@ -597,15 +763,27 @@
       "scenario_id": "Q30",
       "description": "Agile software developer / scrum team \u2013 agile methodology, testing, Java",
       "expected_ids": [
-        "4223",
-        "4032",
         "3971",
+        "4032",
+        "4223",
         "4159"
       ],
-      "recommended_ids": [],
-      "hit_ids": [],
-      "hit_names": [],
-      "recall": 0.0
+      "recommended_ids": [
+        "3947",
+        "4221",
+        "4223",
+        "4159",
+        "4034"
+      ],
+      "hit_ids": [
+        "4223",
+        "4159"
+      ],
+      "hit_names": [
+        "Agile Software Development",
+        "Agile Testing (New)"
+      ],
+      "recall": 0.5
     }
   ]
 }
