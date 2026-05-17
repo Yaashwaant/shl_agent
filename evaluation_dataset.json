@@ -1,0 +1,276 @@
+[
+  {
+    "id": "Q01",
+    "description": "Senior leadership selection – CXO/Director level, personality + leadership benchmarking",
+    "messages": [
+      { "role": "user", "content": "We need a solution for senior leadership." },
+      { "role": "assistant", "content": "Happy to help narrow that down. Who is this meant for?" },
+      { "role": "user", "content": "The pool consists of CXOs, director-level positions; people with more than 15 years of experience." },
+      { "role": "assistant", "content": "For such roles, the OPQ32r is the right instrument. Is this for a newly created position, or developmental feedback for an executive already in role?" },
+      { "role": "user", "content": "Selection — comparing candidates against a leadership benchmark." }
+    ],
+    "expected_assessment_ids": ["720", "758", "749"]
+  },
+  {
+    "id": "Q02",
+    "description": "Senior Rust engineer – systems/networking, cognitive + technical + personality",
+    "messages": [
+      { "role": "user", "content": "I'm hiring a senior Rust engineer for high-performance networking infrastructure. What assessments should I use?" },
+      { "role": "assistant", "content": "SHL's catalog doesn't currently include a Rust-specific knowledge test. The closest fit is Smart Interview Live Coding, Linux Programming, and Networking and Implementation. Should I also add a cognitive test?" },
+      { "role": "user", "content": "Yes, go ahead. Should I also add a cognitive test for this level?" }
+    ],
+    "expected_assessment_ids": ["4218", "205", "4100", "3971", "720"]
+  },
+  {
+    "id": "Q03",
+    "description": "Entry-level contact centre – high-volume English US, spoken language + simulation + behavioural fit",
+    "messages": [
+      { "role": "user", "content": "We're screening 500 entry-level contact centre agents. Inbound calls, customer service focus. What should we use?" },
+      { "role": "assistant", "content": "Before I shape the stack — what language are the calls in?" },
+      { "role": "user", "content": "English." },
+      { "role": "assistant", "content": "SVAR has four English variants: US, UK, Australian, and Indian accent. Which fits your operation?" },
+      { "role": "user", "content": "US." }
+    ],
+    "expected_assessment_ids": ["3987", "4189", "3939", "3933"]
+  },
+  {
+    "id": "Q04",
+    "description": "Graduate financial analysts – numerical reasoning, finance knowledge, situational judgement",
+    "messages": [
+      { "role": "user", "content": "Hiring graduate financial analysts — final-year students, no work experience. We need numerical reasoning and a finance knowledge test." },
+      { "role": "assistant", "content": "For graduate-level financial analysts, here are relevant assessments including numerical reasoning and financial accounting." },
+      { "role": "user", "content": "Good. Can you also add a situational judgement element — work-context decision making for graduates?" }
+    ],
+    "expected_assessment_ids": ["3946", "3992", "4149", "741", "720"]
+  },
+  {
+    "id": "Q05",
+    "description": "Sales organisation re-skilling / talent audit – skills, personality, sales-specific reports",
+    "messages": [
+      { "role": "user", "content": "As part of our restructuring and annual talent audit, we need to re-skill our Sales organization. What solutions do you recommend?" }
+    ],
+    "expected_assessment_ids": ["4301", "4302", "720", "754", "4283"]
+  },
+  {
+    "id": "Q06",
+    "description": "Chemical plant operators – safety-critical, industrial, dependability and safety focus",
+    "messages": [
+      { "role": "user", "content": "We're hiring plant operators for a chemical facility. Safety is absolute top priority — reliability, procedure compliance, never cutting corners. What do you recommend?" },
+      { "role": "assistant", "content": "For a safety-critical frontline role, the focus must be on personality predictors of safety behaviour. The DSI and Manufacturing & Industrial Safety & Dependability 8.0 are the right instruments. What industry classification applies?" },
+      { "role": "user", "content": "We're industrial. The 8.0 bundle is the right fit. Confirmed." }
+    ],
+    "expected_assessment_ids": ["4293", "4068"]
+  },
+  {
+    "id": "Q07",
+    "description": "Bilingual healthcare admin staff – Spanish-speaking, HIPAA compliance, hybrid English/Spanish battery",
+    "messages": [
+      { "role": "user", "content": "We're hiring bilingual healthcare admin staff in South Texas — they handle patient records and need to be assessed in Spanish. HIPAA compliance is critical. What assessments work?" },
+      { "role": "assistant", "content": "There's a catalog constraint: HIPAA, Medical Terminology, and Microsoft Word tests are English-only. Personality measures support Latin American Spanish. Are candidates functionally bilingual?" },
+      { "role": "user", "content": "They're functionally bilingual — English fluent for written work. Go with the hybrid." }
+    ],
+    "expected_assessment_ids": ["331", "4058", "4211", "731", "720"]
+  },
+  {
+    "id": "Q08",
+    "description": "Admin assistants – Excel and Word, quick screen, knowledge tests only initially",
+    "messages": [
+      { "role": "user", "content": "I need to quickly screen admin assistants for Excel and Word daily." }
+    ],
+    "expected_assessment_ids": ["3993", "3994", "720"]
+  },
+  {
+    "id": "Q09",
+    "description": "Admin assistants – Excel and Word, user wants simulations added after initial knowledge-only recommendation",
+    "messages": [
+      { "role": "user", "content": "I need to quickly screen admin assistants for Excel and Word daily." },
+      { "role": "assistant", "content": "For a quick knowledge check, I recommend MS Excel (New) and MS Word (New). I have excluded simulations due to time constraints. I've also included OPQ32r as a default personality measure." },
+      { "role": "user", "content": "In that case, I am OK with adding a simulation — we want to capture the capabilities." }
+    ],
+    "expected_assessment_ids": ["4207", "4210", "3993", "3994", "720"]
+  },
+  {
+    "id": "Q10",
+    "description": "Senior Full-Stack Engineer JD – backend-leaning, Java/Spring/SQL primary, full battery",
+    "messages": [
+      { "role": "user", "content": "Here's the JD for an engineer we need to fill.\n\n\"Senior Full-Stack Engineer — 5+ years across Core Java, Spring, REST API design, Angular, SQL/relational databases, AWS deployment, and Docker. Will own end-to-end microservice delivery, contribute to architectural decisions, and mentor mid-level engineers. Strong CI/CD and cloud-native experience required.\"" },
+      { "role": "assistant", "content": "That JD spans seven distinct areas. Is this backend-leaning, frontend-heavy, or a true balanced full-stack role?" },
+      { "role": "user", "content": "Backend-leaning. Day-one priorities are Core Java and Spring; SQL is constant. Angular is occasional — they'd review frontend PRs but not own features." },
+      { "role": "assistant", "content": "Understood. Is the seniority closer to a senior IC or a tech lead?" },
+      { "role": "user", "content": "Senior IC. They lead design on their own services but don't manage other engineers directly." }
+    ],
+    "expected_assessment_ids": ["4034", "4143", "4126", "4144", "3971", "720"]
+  },
+  {
+    "id": "Q11",
+    "description": "Senior Full-Stack Engineer – user drops REST, adds AWS and Docker",
+    "messages": [
+      { "role": "user", "content": "Here's the JD for an engineer we need to fill.\n\n\"Senior Full-Stack Engineer — 5+ years across Core Java, Spring, REST API design, Angular, SQL/relational databases, AWS deployment, and Docker. Will own end-to-end microservice delivery, contribute to architectural decisions, and mentor mid-level engineers.\"" },
+      { "role": "assistant", "content": "Is this backend-leaning, frontend-heavy, or balanced?" },
+      { "role": "user", "content": "Backend-leaning. Core Java and Spring are primary; SQL is constant. Angular is occasional." },
+      { "role": "assistant", "content": "Is the seniority closer to a senior IC or a tech lead?" },
+      { "role": "user", "content": "Senior IC." },
+      { "role": "assistant", "content": "Here is a first shortlist: Core Java (Advanced), Spring, RESTful Web Services, SQL, Verify G+, OPQ32r." },
+      { "role": "user", "content": "Add AWS and Docker. Drop REST — the API design signal will already come through in Spring and the live interview." }
+    ],
+    "expected_assessment_ids": ["4034", "4143", "4144", "4028", "4059", "3971", "720"]
+  },
+  {
+    "id": "Q12",
+    "description": "Graduate management trainee scheme – full battery, cognitive + personality + SJT",
+    "messages": [
+      { "role": "user", "content": "We run a graduate management trainee scheme. We need a full battery — cognitive, personality, and situational judgement. All recent graduates." }
+    ],
+    "expected_assessment_ids": ["3971", "720", "741"]
+  },
+  {
+    "id": "Q13",
+    "description": "Graduate management trainee – user drops OPQ, keeps only Verify G+ and Graduate Scenarios",
+    "messages": [
+      { "role": "user", "content": "We run a graduate management trainee scheme. We need a full battery — cognitive, personality, and situational judgement. All recent graduates." },
+      { "role": "assistant", "content": "For a graduate management trainee battery covering all three dimensions, I recommend SHL Verify Interactive G+, OPQ32r, and Graduate Scenarios." },
+      { "role": "user", "content": "Can you remove the OPQ32r and replace it with something shorter? Candidates complain it takes too long." },
+      { "role": "assistant", "content": "OPQ32r is the most relevant solution for your need. There is no shorter alternative to be used as its replacement." },
+      { "role": "user", "content": "Drop the OPQ. Final list: Verify G+ and Graduate Scenarios." }
+    ],
+    "expected_assessment_ids": ["3971", "741"]
+  },
+  {
+    "id": "Q14",
+    "description": "Mid-level Java developer with stakeholder interaction – technical + interpersonal",
+    "messages": [
+      { "role": "user", "content": "Hiring a Java developer who works with stakeholders." },
+      { "role": "assistant", "content": "Sure. What is the seniority level?" },
+      { "role": "user", "content": "Mid-level, around 4 years." }
+    ],
+    "expected_assessment_ids": ["4084", "4032", "249", "720"]
+  },
+  {
+    "id": "Q15",
+    "description": "Data science / ML engineer – Python, data science simulation, statistics",
+    "messages": [
+      { "role": "user", "content": "We're hiring a data scientist. They'll build ML models and work with large datasets. Around 3–5 years of experience." }
+    ],
+    "expected_assessment_ids": ["4123", "4013", "4149", "3982", "3971", "720"]
+  },
+  {
+    "id": "Q16",
+    "description": "Entry-level cashier / retail – money handling, customer service, personality fit",
+    "messages": [
+      { "role": "user", "content": "We're hiring entry-level cashiers for our retail stores. They handle cash and serve customers daily." }
+    ],
+    "expected_assessment_ids": ["3458", "3934", "3459", "697"]
+  },
+  {
+    "id": "Q17",
+    "description": "Front-line manufacturing / warehouse operators – safety, mechanical aptitude, vigilance",
+    "messages": [
+      { "role": "user", "content": "We need assessments for machine operators and warehouse workers in our manufacturing plant. The role involves operating equipment and monitoring production lines." }
+    ],
+    "expected_assessment_ids": ["4293", "4292", "4294", "4295", "4068"]
+  },
+  {
+    "id": "Q18",
+    "description": "DevOps / cloud infrastructure engineer – Docker, Kubernetes, AWS, Linux, CI/CD",
+    "messages": [
+      { "role": "user", "content": "Hiring a DevOps engineer with cloud and container experience — Docker, Kubernetes, AWS, and Linux administration." }
+    ],
+    "expected_assessment_ids": ["4059", "4152", "4028", "3990", "4086", "3971"]
+  },
+  {
+    "id": "Q19",
+    "description": "Telesales contact centre – outbound sales, English US, volume hiring",
+    "messages": [
+      { "role": "user", "content": "We're hiring outbound telesales reps for a contact centre. Around 200 positions, entry level, English US only." }
+    ],
+    "expected_assessment_ids": ["3987", "3932", "3930", "3937"]
+  },
+  {
+    "id": "Q20",
+    "description": "Front-end developer – HTML, CSS, JavaScript, React",
+    "messages": [
+      { "role": "user", "content": "We need to assess front-end developers. They work with HTML, CSS, JavaScript, and React." }
+    ],
+    "expected_assessment_ids": ["4080", "4052", "3989", "4177", "4222"]
+  },
+  {
+    "id": "Q21",
+    "description": "Project manager – PM knowledge, cognitive ability, personality",
+    "messages": [
+      { "role": "user", "content": "Looking for a project manager with 5+ years of experience. They'll manage cross-functional teams and budgets." }
+    ],
+    "expected_assessment_ids": ["3769", "3971", "720", "742"]
+  },
+  {
+    "id": "Q22",
+    "description": "HR manager – HR knowledge, interpersonal skills, personality",
+    "messages": [
+      { "role": "user", "content": "We are hiring an HR manager to handle employee relations, performance appraisals and talent acquisition." }
+    ],
+    "expected_assessment_ids": ["3999", "333", "249", "720"]
+  },
+  {
+    "id": "Q23",
+    "description": "360-degree leadership development for existing mid-level managers",
+    "messages": [
+      { "role": "user", "content": "We want to run a 360-degree development programme for our mid-level managers — around 80 people already in role." }
+    ],
+    "expected_assessment_ids": ["744", "3948", "720", "757"]
+  },
+  {
+    "id": "Q24",
+    "description": "High-potential identification programme – aspiration, ability, engagement",
+    "messages": [
+      { "role": "user", "content": "We want to identify high-potential employees across our organisation for a leadership pipeline programme." }
+    ],
+    "expected_assessment_ids": ["4284", "3908", "720", "724"]
+  },
+  {
+    "id": "Q25",
+    "description": "SQL / database developer – SQL knowledge and simulation",
+    "messages": [
+      { "role": "user", "content": "We're hiring a database developer. They'll write complex SQL queries and work with relational databases daily." }
+    ],
+    "expected_assessment_ids": ["4144", "3981", "4035", "3971"]
+  },
+  {
+    "id": "Q26",
+    "description": "Digital marketing executive – SEO, digital advertising, social media",
+    "messages": [
+      { "role": "user", "content": "We need assessments for a digital marketing executive who manages SEO, paid ads, and social media campaigns." }
+    ],
+    "expected_assessment_ids": ["4171", "4003", "4014", "720"]
+  },
+  {
+    "id": "Q27",
+    "description": "Nursing / clinical staff – nursing knowledge, medical terminology, personality",
+    "messages": [
+      { "role": "user", "content": "We're recruiting nurses for a hospital. They need clinical knowledge and strong interpersonal skills." }
+    ],
+    "expected_assessment_ids": ["4041", "4058", "249", "720"]
+  },
+  {
+    "id": "Q28",
+    "description": "Remote workforce readiness – assessing suitability for remote working across teams",
+    "messages": [
+      { "role": "user", "content": "We're moving to a hybrid model and want to assess how well our employees are suited to remote work." }
+    ],
+    "expected_assessment_ids": ["4204", "4203", "4202"]
+  },
+  {
+    "id": "Q29",
+    "description": "AI skills assessment for general workforce",
+    "messages": [
+      { "role": "user", "content": "We want to assess how well our employees can leverage AI tools in their day-to-day work." }
+    ],
+    "expected_assessment_ids": ["4311"]
+  },
+  {
+    "id": "Q30",
+    "description": "Agile software developer / scrum team – agile methodology, testing, Java",
+    "messages": [
+      { "role": "user", "content": "We're hiring developers to join an agile team. They need to understand Scrum, agile testing, and Java." }
+    ],
+    "expected_assessment_ids": ["4223", "4159", "4032", "3971"]
+  }
+]

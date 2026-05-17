@@ -10,6 +10,7 @@ from pathlib import Path
 class Settings(BaseSettings):
     # LLM
     google_api_key: str = ""
+    openrouter_api_key: str = ""
 
     # Paths
     chroma_persist_dir: str = "./data/chroma_db"

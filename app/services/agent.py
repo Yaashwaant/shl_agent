@@ -311,12 +311,14 @@ Respond with JSON only:
 
 # ─────────────────────────── LLM Helper ─────────────────────────────────── #
 
-def _get_llm(temperature: float = 0.3) -> ChatGoogleGenerativeAI:
-    return ChatGoogleGenerativeAI(
-        model="gemini-2.0-flash",
+def _get_llm(temperature: float = 0.3) -> "ChatOpenAI":
+    from langchain_openai import ChatOpenAI
+    return ChatOpenAI(
+        model="minimax/minimax-01",
         temperature=temperature,
-        google_api_key=settings.google_api_key,
-        max_output_tokens=2048,
+        api_key=settings.openrouter_api_key,
+        base_url="https://openrouter.ai/api/v1",
+        max_tokens=2048,
     )
 
 

@@ -6,9 +6,13 @@ pydantic-settings==2.11.0
 # LangGraph + LangChain
 langgraph==0.6.11
 langchain==0.3.30
+langchain-openai==0.3.35
 langchain-google-genai==2.1.12
 langchain-community==0.3.31
 langchain-core==0.3.86
+
+# OpenRouter
+openai>=1.0.0
 
 # Vector Store
 chromadb==1.5.9

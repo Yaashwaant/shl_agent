@@ -1,322 +1,228 @@
 """
-Recall@K Evaluation Script
-===========================
-Simulates multi-turn conversations against the live /chat endpoint
-and computes Mean Recall@10 against the expected final shortlists
-extracted from the 10 sample conversation files.
+eval_recall.py — Recall@10 evaluation on the evaluation_dataset.json
+
+Runs each scenario through the /chat API, extracts the recommended IDs from
+the JSON block in the reply, and computes Recall@10 against ground-truth
+expected_assessments (matched by name → entity_id).
 
 Usage:
-    python scripts/eval_recall.py [--base-url http://localhost:8000] [--k 10]
+    python scripts/eval_recall.py [--base-url http://localhost:8000] [--catalog data/shl_catalog.json]
 """
-
+import argparse
+import json
 import re
 import sys
-import json
-import argparse
-import requests
 from pathlib import Path
-from typing import List, Dict, Tuple
+from typing import Dict, List, Optional, Set
 
-# ── Expected final shortlists (manually extracted from C1–C10.md) ──────────
-# Each entry: (conversation_id, description, user_turns, expected_names)
-# expected_names = the FINAL confirmed shortlist from the last table in each .md
+import httpx
 
-CONVERSATIONS = [
-    {
-        "id": "C1",
-        "description": "Senior leadership / CXO executive assessment",
-        "user_turns": [
-            "We need a solution for senior leadership.",
-            "The pool consists of CXOs, director-level positions; people with more than 15 years of experience.",
-            "This is for selection into a newly created C-suite role. We want personality and leadership. No development reports.",
-            "Yes, that works. Confirmed.",
-        ],
-        "expected": [
-            "Occupational Personality Questionnaire OPQ32r",
-        ],
-    },
-    {
-        "id": "C2",
-        "description": "Volume hiring for customer service agents",
-        "user_turns": [
-            "I'm hiring for a customer service role. High volume, entry level.",
-            "We need remote testing. English speakers only.",
-            "Add a personality measure too.",
-            "Looks good. Confirm.",
-        ],
-        "expected": [
-            "Occupational Personality Questionnaire OPQ32r",
-            "SHL Verify Interactive G+",
-        ],
-    },
-    {
-        "id": "C3",
-        "description": "Graduate management trainee scheme - cognitive, personality, SJT",
-        "user_turns": [
-            "We run a graduate management trainee scheme. We need a full battery — cognitive, personality, and situational judgement. All recent graduates.",
-            "Drop the OPQ. Final list: Verify G+ and Graduate Scenarios.",
-        ],
-        "expected": [
-            "SHL Verify Interactive G+",
-            "Graduate Scenarios",
-        ],
-    },
-    {
-        "id": "C4",
-        "description": "Sales representative hiring",
-        "user_turns": [
-            "Hiring sales reps. Mid-level. Need to assess drive, resilience, and customer focus.",
-            "Add a cognitive test too.",
-            "Confirmed.",
-        ],
-        "expected": [
-            "Occupational Personality Questionnaire OPQ32r",
-            "SHL Verify Interactive G+",
-        ],
-    },
-    {
-        "id": "C5",
-        "description": "Senior Java backend engineer - microservices",
-        "user_turns": [
-            "I need to assess a senior backend engineer. Java, microservices, works with stakeholders.",
-            "Senior IC level — owns end-to-end microservice delivery.",
-            "Spring, SQL, AWS, Docker on top of core Java.",
-            "Also need a cognitive and personality test.",
-            "On Java — they'd be working on existing services, not greenfield. Is the Advanced level the right pick?",
-            "Keep Verify G+. Locking it in.",
-        ],
-        "expected": [
-            "Core Java (Advanced Level) (New)",
-            "Spring (New)",
-            "SQL (New)",
-            "Amazon Web Services (AWS) Development (New)",
-            "Docker (New)",
-            "SHL Verify Interactive G+",
-            "Occupational Personality Questionnaire OPQ32r",
-        ],
-    },
-    {
-        "id": "C6",
-        "description": "Data analyst role",
-        "user_turns": [
-            "Need assessments for a data analyst position. Mid-level, 3 years experience.",
-            "SQL and Python are core. Also needs to present findings to non-technical stakeholders.",
-            "Confirm.",
-        ],
-        "expected": [
-            "SQL (New)",
-            "Python (New)",
-            "Occupational Personality Questionnaire OPQ32r",
-        ],
-    },
-    {
-        "id": "C7",
-        "description": "Safety-critical industrial role",
-        "user_turns": [
-            "We're hiring for a safety-critical role in a chemical plant. Operators.",
-            "Entry level. Safety compliance is essential.",
-            "Yes add a dependability/reliability measure.",
-            "Confirmed.",
-        ],
-        "expected": [
-            "Occupational Personality Questionnaire OPQ32r",
-            "SHL Verify Interactive G+",
-        ],
-    },
-    {
-        "id": "C8",
-        "description": "HR business partner role",
-        "user_turns": [
-            "Looking for assessments for an HR Business Partner.",
-            "Mid-level. They need to influence stakeholders and manage change.",
-            "Add a cognitive measure.",
-            "Confirmed.",
-        ],
-        "expected": [
-            "Occupational Personality Questionnaire OPQ32r",
-            "SHL Verify Interactive G+",
-        ],
-    },
-    {
-        "id": "C9",
-        "description": "Finance manager / FP&A",
-        "user_turns": [
-            "Hiring a finance manager. FP&A focus. Senior level.",
-            "Numerical reasoning and Excel are important. Also stakeholder management.",
-            "Add personality.",
-            "Confirmed.",
-        ],
-        "expected": [
-            "Occupational Personality Questionnaire OPQ32r",
-            "SHL Verify Interactive G+",
-        ],
-    },
-    {
-        "id": "C10",
-        "description": "Graduate trainee full battery (cognitive + SJT, OPQ dropped)",
-        "user_turns": [
-            "We run a graduate management trainee scheme. We need a full battery — cognitive, personality, and situational judgement. All recent graduates.",
-            "But can you remove the OPQ32r and replace it with something shorter? Candidates complain it takes too long.",
-            "Drop the OPQ. Final list: Verify G+ and Graduate Scenarios.",
-        ],
-        "expected": [
-            "SHL Verify Interactive G+",
-            "Graduate Scenarios",
-        ],
-    },
-]
+CATALOG_PATH = Path("data/shl_catalog.json")
+DATASET_PATH = Path("evaluation_dataset.json")
+DEFAULT_BASE_URL = "http://localhost:8000"
+K = 10
 
 
-# ── Recall@K helpers ─────────────────────────────────────────────────────────
-
-def normalise(name: str) -> str:
-    """Lowercase + strip punctuation for fuzzy matching."""
-    return re.sub(r"[^a-z0-9 ]", "", name.lower()).strip()
-
-
-def recall_at_k(recommended: List[str], expected: List[str], k: int = 10) -> float:
-    """
-    Recall@K = |relevant ∩ top-K recommended| / |relevant|
-    Matching is done by normalised name substring check.
-    """
-    if not expected:
-        return 1.0  # nothing expected → trivially satisfied
-
-    top_k = recommended[:k]
-    top_k_norm = [normalise(n) for n in top_k]
-
-    hits = 0
-    for exp in expected:
-        exp_norm = normalise(exp)
-        # Match if any recommended name contains or is contained by the expected name
-        if any(exp_norm in r or r in exp_norm for r in top_k_norm):
-            hits += 1
-
-    return hits / len(expected)
+def load_catalog(catalog_path: Path) -> tuple:
+    """Build name → entity_id and entity_id → item mappings from the catalog JSON."""
+    with open(catalog_path, "r", encoding="utf-8") as f:
+        catalog = json.load(f)
+    name_to_id = {item["name"]: item["entity_id"] for item in catalog}
+    id_to_name = {item["entity_id"]: item["name"] for item in catalog}
+    return name_to_id, id_to_name
 
 
-# ── Agent interaction ─────────────────────────────────────────────────────────
+def load_dataset(dataset_path: Path) -> List[dict]:
+    with open(dataset_path, "r", encoding="utf-8") as f:
+        return json.load(f)
 
-def run_conversation(base_url: str, user_turns: List[str], conv_id: str) -> Tuple[List[str], List[Dict]]:
-    """
-    Simulate a multi-turn conversation with the agent.
-    Returns (recommended_names, full_recommendations).
-    Stops when end_of_conversation=true or all turns exhausted.
-    """
-    messages = []
-    final_recs = []
-    final_names = []
 
-    for turn_idx, user_text in enumerate(user_turns):
-        messages.append({"role": "user", "content": user_text})
+def _is_match(rec_name: str, expected_names: List[str]) -> bool:
+    """Check if recommended name matches any expected name via substring or fuzzy match."""
+    rec_lower = rec_name.lower()
+    for exp in expected_names:
+        exp_lower = exp.lower()
+        if exp_lower in rec_lower or rec_lower in exp_lower:
+            return True
+        if rec_lower.split()[0] == exp_lower.split()[0] and len(rec_name) < len(exp) + 15:
+            return True
+    return False
 
+
+def extract_recommended_ids(reply: str) -> List[str]:
+    """Extract recommended_ids from the JSON block in the agent's reply."""
+    json_match = re.search(r"```json\s*(\{.*?\})\s*```", reply, re.DOTALL)
+    if json_match:
         try:
-            resp = requests.post(
-                f"{base_url}/chat",
+            parsed = json.loads(json_match.group(1))
+            return parsed.get("recommended_ids", [])
+        except json.JSONDecodeError:
+            pass
+    return []
+
+
+def run_chat(
+    base_url: str,
+    messages: List[Dict[str, str]],
+    timeout: float = 120.0,
+) -> Optional[List[Dict]]:
+    """Send a conversation to /chat and return recommendation objects."""
+    try:
+        with httpx.Client(base_url=base_url, timeout=timeout) as client:
+            response = client.post(
+                "/chat",
                 json={"messages": messages},
-                timeout=120,
             )
-            resp.raise_for_status()
-            data = resp.json()
-        except requests.exceptions.Timeout:
-            print(f"  [{conv_id}] Turn {turn_idx+1}: TIMEOUT")
-            break
-        except Exception as e:
-            print(f"  [{conv_id}] Turn {turn_idx+1}: ERROR — {e}")
-            break
-
-        reply = data.get("reply", "")
-        recs = data.get("recommendations") or []
-        eoc = data.get("end_of_conversation", False)
-
-        messages.append({"role": "assistant", "content": reply})
-
-        if recs:
-            final_recs = recs
-            final_names = [r["name"] for r in recs]
-
-        status = "✓ eoc" if eoc else f"{len(recs)} recs"
-        print(f"  [{conv_id}] Turn {turn_idx+1}: {status} | reply: {reply[:80]}...")
-
-        if eoc:
-            break
-
-    return final_names, final_recs
+            response.raise_for_status()
+            data = response.json()
+            return data.get("recommendations")
+    except Exception as e:
+        print(f"      [WARN] /chat call failed: {e}")
+        return None
 
 
-# ── Main evaluation loop ──────────────────────────────────────────────────────
+def recall_at_k(
+    recommended_ids: List[str],
+    relevant_ids: Set[str],
+    k: int = 10,
+) -> float:
+    """
+    Recall@K = (Number of relevant assessments in top K) / (Total relevant assessments)
+    """
+    top_k = set(recommended_ids[:k])
+    if not relevant_ids:
+        return 1.0 if not recommended_ids else 0.0
+    return len(top_k & relevant_ids) / len(relevant_ids)
+
 
 def main():
-    parser = argparse.ArgumentParser(description="Recall@K evaluator for SHL agent")
-    parser.add_argument("--base-url", default="http://localhost:8000")
-    parser.add_argument("--k", type=int, default=10)
+    parser = argparse.ArgumentParser(description="Recall@10 evaluation for SHL Agent")
+    parser.add_argument(
+        "--base-url",
+        default=DEFAULT_BASE_URL,
+        help=f"Base URL of the deployed API (default: {DEFAULT_BASE_URL})",
+    )
+    parser.add_argument(
+        "--catalog",
+        type=Path,
+        default=CATALOG_PATH,
+        help=f"Path to shl_catalog.json (default: {CATALOG_PATH})",
+    )
+    parser.add_argument(
+        "--dataset",
+        type=Path,
+        default=DATASET_PATH,
+        help=f"Path to evaluation_dataset.json (default: {DATASET_PATH})",
+    )
+    parser.add_argument(
+        "--timeout",
+        type=float,
+        default=120.0,
+        help="Timeout per /chat call in seconds (default: 120)",
+    )
     args = parser.parse_args()
 
-    print(f"\n{'='*60}")
-    print(f"  SHL Agent — Recall@{args.k} Evaluation")
-    print(f"  Endpoint: {args.base_url}")
-    print(f"{'='*60}\n")
+    catalog, id_to_name = load_catalog(args.catalog)
+    dataset = load_dataset(args.dataset)
 
-    # Check health first
-    try:
-        h = requests.get(f"{args.base_url}/health", timeout=10)
-        print(f"Health: {h.json()}\n")
-    except Exception as e:
-        print(f"ERROR: Cannot reach {args.base_url}/health — {e}")
-        sys.exit(1)
+    print(f"{'='*70}")
+    print(f"Recall@10 Evaluation — SHL Assessment Advisor")
+    print(f"{'='*70}")
+    print(f"Base URL   : {args.base_url}")
+    print(f"Catalog    : {args.catalog}")
+    print(f"Dataset    : {args.dataset} ({len(dataset)} scenarios)")
+    print(f"K          : {K}")
+    print(f"{'='*70}\n")
 
-    results = []
+    catalog, id_to_name = load_catalog(args.catalog)
 
-    for conv in CONVERSATIONS:
-        cid = conv["id"]
-        desc = conv["description"]
-        expected = conv["expected"]
-        user_turns = conv["user_turns"]
+    results: List[dict] = []
+    recall_scores: List[float] = []
 
-        print(f"\n{'─'*60}")
-        print(f"  {cid}: {desc}")
-        print(f"  Expected ({len(expected)}): {', '.join(expected)}")
-        print()
+    for i, scenario in enumerate(dataset, 1):
+        scenario_id = scenario["id"]
+        description = scenario["description"]
+        messages = scenario["messages"]
+        expected_ids = set(scenario.get("expected_assessment_ids", []))
+        expected_names = [id_to_name.get(eid, "") for eid in expected_ids]
 
-        recommended_names, full_recs = run_conversation(args.base_url, user_turns, cid)
+        print(f"[{i:02d}] {scenario_id}: {description[:60]}...")
+        print(f"       Expected ({len(expected_ids)}): {expected_names[:3]}{'...' if len(expected_names) > 3 else ''}")
 
-        score = recall_at_k(recommended_names, expected, k=args.k)
+        recommendations = run_chat(args.base_url, messages, timeout=args.timeout)
 
-        print(f"\n  Recommended ({len(recommended_names)}): {', '.join(recommended_names) or 'NONE'}")
-        print(f"  Recall@{args.k}: {score:.2f}  ({'PASS' if score > 0 else 'FAIL'})")
+        if recommendations is None:
+            recall = 0.0
+            hit_names = []
+            recommended_ids = []
+            recommended_names = []
+            hit_ids = []
+        else:
+            recommended_ids = []
+            recommended_names = []
+            hit_ids = []
+            for rec in recommendations[:K]:
+                name = rec.get("name", "")
+                recommended_names.append(name)
+                entity_id = catalog.get(name)
+                if entity_id:
+                    recommended_ids.append(entity_id)
+                    if entity_id in expected_ids:
+                        hit_ids.append(entity_id)
+            recall = len(hit_ids) / len(expected_ids) if expected_ids else 1.0
+            hit_names = [name for name in recommended_names if catalog.get(name) in expected_ids]
 
+        recall_scores.append(recall)
         results.append({
-            "id": cid,
-            "description": desc,
-            "expected": expected,
-            "recommended": recommended_names,
-            "recall": score,
+            "scenario_id": scenario_id,
+            "description": description,
+            "expected_ids": list(expected_ids),
+            "recommended_ids": recommended_ids[:K],
+            "hit_ids": hit_ids,
+            "hit_names": hit_names,
+            "recall": recall,
         })
 
-    # ── Summary ──────────────────────────────────────────────────────────────
-    mean_recall = sum(r["recall"] for r in results) / len(results)
+        print(f"       Recommended: {recommended_names[:3] if recommended_names else 'N/A'}{'...' if len(recommended_names) > 3 else ''}")
+        print(f"       Hits: {hit_names}")
+        print(f"       Recall@{K}: {recall:.3f}\n")
 
-    print(f"\n{'='*60}")
-    print(f"  RESULTS SUMMARY")
-    print(f"{'='*60}")
+    mean_recall = sum(recall_scores) / len(recall_scores) if recall_scores else 0.0
+
+    print(f"{'='*70}")
+    print(f"RESULTS SUMMARY")
+    print(f"{'='*70}")
+    print(f"{'Scenario':<8} {'Recall@10':>10}  {'Hits':>6}  {'Expected':>10}  {'Status'}")
+    print(f"{'-'*70}")
     for r in results:
-        bar = "█" * int(r["recall"] * 10) + "░" * (10 - int(r["recall"] * 10))
-        print(f"  {r['id']:4s} [{bar}] {r['recall']:.2f}  {r['description'][:45]}")
-    print(f"{'─'*60}")
-    print(f"  Mean Recall@{args.k}: {mean_recall:.4f}  ({mean_recall*100:.1f}%)")
-    print(f"{'='*60}\n")
+        status = "✅ PASS" if r["recall"] >= 1.0 else "⚠️  PARTIAL" if r["recall"] > 0 else "❌ FAIL"
+        print(
+            f"{r['scenario_id']:<8} {r['recall']:>10.3f}  "
+            f"{len(r['hit_names']):>6}  "
+            f"{len(r['expected_ids']):>10}  "
+            f"{status}"
+        )
+    print(f"{'-'*70}")
+    print(f"{'Mean Recall@10':>30}: {mean_recall:.3f} ({mean_recall*100:.1f}%)")
+    print(f"{'='*70}\n")
 
-    # Save to JSON
-    output = {
-        "mean_recall_at_k": mean_recall,
-        "k": args.k,
-        "conversations": results,
-    }
-    out_path = Path(__file__).parent.parent / "eval_results.json"
-    with open(out_path, "w") as f:
-        json.dump(output, f, indent=2)
-    print(f"Results saved to: {out_path}\n")
+    output_path = Path("eval_results.json")
+    with open(output_path, "w", encoding="utf-8") as f:
+        json.dump({
+            "mean_recall_at_10": mean_recall,
+            "k": K,
+            "num_scenarios": len(dataset),
+            "results": results,
+        }, f, indent=2)
+    print(f"Detailed results saved to: {output_path}")
+
+    passed = sum(1 for r in results if r["recall"] >= 1.0)
+    partial = sum(1 for r in results if 0 < r["recall"] < 1.0)
+    failed = sum(1 for r in results if r["recall"] == 0)
+    print(f"\nPassed: {passed}/{len(results)}  |  Partial: {partial}  |  Failed: {failed}")
+
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
